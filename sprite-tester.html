@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprite Tester</title>
+  <style>
+    :root {
+      --bg: #eef4f7;
+      --ink: #1d2a33;
+      --panel: #ffffff;
+      --line: #c7d6df;
+      --accent: #2f7ca1;
+      --ok: #4c8a59;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #e8f2f8 0%, #eef4f7 100%);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 360px 1fr;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    label { font-size: 13px; }
+    input, select, button {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #b7cad5;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+    }
+    input[type="range"] { padding: 0; }
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      cursor: pointer;
+      background: #f5fbff;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: #1f6485;
+    }
+    .meta {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #465b68;
+      line-height: 1.4;
+    }
+    .viewer {
+      display: grid;
+      gap: 14px;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #d9ecf8;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .title {
+      margin: 0 0 6px;
+      font-size: 14px;
+      color: #2f4756;
+    }
+    .ok {
+      color: var(--ok);
+      font-weight: 600;
+    }
+    @media (max-width: 980px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <h1>Sprite Tester</h1>
+
+      <div class="row">
+        <label for="sprite">Sprite</label>
+        <select id="sprite">
+          <option value="assets/cat/Cat platformer sprite.png">Cat (4x4)</option>
+          <option value="assets/dog_default12_3x4.png">Dog Run (3x4)</option>
+          <option value="assets/dog_chase12_3x4.png">Dog Chase (3x4)</option>
+          <option value="assets/mouse sprite.png">Mouse (3x4)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="cols">Spalten</label>
+        <input id="cols" type="number" min="1" max="24" step="1" value="4" />
+      </div>
+      <div class="row">
+        <label for="rows">Reihen</label>
+        <input id="rows" type="number" min="1" max="24" step="1" value="4" />
+      </div>
+      <div class="row">
+        <label for="count">Frame Count</label>
+        <input id="count" type="number" min="1" max="256" step="1" value="16" />
+      </div>
+      <div class="row">
+        <label for="from">Frame From</label>
+        <input id="from" type="number" min="0" max="255" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="to">Frame To</label>
+        <input id="to" type="number" min="0" max="255" step="1" value="15" />
+      </div>
+      <div class="row">
+        <label for="cutx">Cut Start X</label>
+        <input id="cutx" type="number" min="0" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="cuty">Cut Start Y</label>
+        <input id="cuty" type="number" min="0" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="cutw">Cut Width</label>
+        <input id="cutw" type="number" min="1" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="cuth">Cut Height</label>
+        <input id="cuth" type="number" min="1" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="stepx">Step X</label>
+        <input id="stepx" type="number" min="1" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="stepy">Step Y</label>
+        <input id="stepy" type="number" min="1" max="4096" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="rowshiftx">Row Shift X</label>
+        <input id="rowshiftx" type="number" min="-1024" max="1024" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="rowshifty">Row Shift Y</label>
+        <input id="rowshifty" type="number" min="-1024" max="1024" step="1" value="0" />
+      </div>
+
+      <div class="row">
+        <label for="fps">Speed (FPS)</label>
+        <input id="fps" type="range" min="1" max="24" step="1" value="10" />
+      </div>
+      <div class="row">
+        <label for="scale">Scale</label>
+        <input id="scale" type="range" min="0.05" max="2" step="0.01" value="0.25" />
+      </div>
+      <div class="row">
+        <label for="xoff">X Offset</label>
+        <input id="xoff" type="range" min="-300" max="300" step="1" value="0" />
+      </div>
+      <div class="row">
+        <label for="yoff">Y Offset</label>
+        <input id="yoff" type="range" min="-300" max="300" step="1" value="0" />
+      </div>
+
+      <div class="row">
+        <label for="sequence">Frame-Sequenz (z. B. 0,1,2,3,2,1)</label>
+        <input id="sequence" type="text" value="" placeholder="leer = 0..count-1" />
+      </div>
+      <div class="row">
+        <label for="dbgAlpha">Alpha/Shadow Debug</label>
+        <input id="dbgAlpha" type="checkbox" />
+      </div>
+      <div class="row">
+        <label for="dbgThresh">Debug Threshold</label>
+        <input id="dbgThresh" type="range" min="1" max="255" step="1" value="80" />
+      </div>
+      <div class="row">
+        <label for="editorCutZoom">Editor: Zoom auf Cut</label>
+        <input id="editorCutZoom" type="checkbox" checked />
+      </div>
+
+      <div class="buttons">
+        <button id="btnApply" class="primary">Apply</button>
+        <button id="btnPlay">Play/Pause</button>
+        <button id="btnPing">PingPong</button>
+        <button id="btnCopy">Copy JSON</button>
+        <button id="btnEditorApply">Editor -> Felder</button>
+        <button id="btnEq">Aequidistant: ON</button>
+      </div>
+
+      <div class="meta" id="meta">
+        <div>Lade...</div>
+      </div>
+    </section>
+
+    <section class="viewer">
+      <div class="panel">
+        <p class="title">Animation Preview</p>
+        <canvas id="preview" width="760" height="320"></canvas>
+      </div>
+      <div class="panel">
+        <p class="title">Atlas Editor (Drag Handles)</p>
+        <canvas id="editor" width="760" height="460"></canvas>
+      </div>
+      <div class="panel">
+        <p class="title">Alle Frames</p>
+        <canvas id="atlas" width="760" height="420"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const presets = {
+      "assets/cat/Cat platformer sprite.png": { cols: 4, rows: 4, count: 16, from: 0, to: 7, scale: 0.25, fps: 11 },
+      "assets/dog sprite.png": { cols: 4, rows: 3, count: 12, from: 0, to: 11, stepx: 384, stepy: 341, scale: 0.12, fps: 10, sequence: "0,1,2,3,4,5,6,7,8,9,10,11" },
+      "assets/dog chase sprite.png": { cols: 4, rows: 3, count: 12, from: 0, to: 11, stepx: 384, stepy: 341, scale: 0.12, fps: 12, sequence: "0,1,2,3,4,5,6,7,8,9,10,11" },
+      "assets/mouse sprite.png": { cols: 4, rows: 4, count: 9, from: 0, to: 8, scale: 0.12, fps: 8, sequence: "0,1,2,3,4,5,6,7,8" },
+    };
+
+    const spriteEl = document.getElementById("sprite");
+    const colsEl = document.getElementById("cols");
+    const rowsEl = document.getElementById("rows");
+    const countEl = document.getElementById("count");
+    const fromEl = document.getElementById("from");
+    const toEl = document.getElementById("to");
+    const cutxEl = document.getElementById("cutx");
+    const cutyEl = document.getElementById("cuty");
+    const cutwEl = document.getElementById("cutw");
+    const cuthEl = document.getElementById("cuth");
+    const stepxEl = document.getElementById("stepx");
+    const stepyEl = document.getElementById("stepy");
+    const rowshiftxEl = document.getElementById("rowshiftx");
+    const rowshiftyEl = document.getElementById("rowshifty");
+    const fpsEl = document.getElementById("fps");
+    const scaleEl = document.getElementById("scale");
+    const xoffEl = document.getElementById("xoff");
+    const yoffEl = document.getElementById("yoff");
+    const sequenceEl = document.getElementById("sequence");
+    const dbgAlphaEl = document.getElementById("dbgAlpha");
+    const dbgThreshEl = document.getElementById("dbgThresh");
+    const editorCutZoomEl = document.getElementById("editorCutZoom");
+    const metaEl = document.getElementById("meta");
+    const previewCanvas = document.getElementById("preview");
+    const editorCanvas = document.getElementById("editor");
+    const atlasCanvas = document.getElementById("atlas");
+    const pctx = previewCanvas.getContext("2d");
+    const ectx = editorCanvas.getContext("2d");
+    const actx = atlasCanvas.getContext("2d");
+    const btnEq = document.getElementById("btnEq");
+
+    let img = null;
+    let isPlaying = true;
+    let eqOn = true;
+    let lastStep = 0;
+    let stepMs = 100;
+    let tick = 0;
+    let parsedSeq = [];
+    let dragMode = null;
+
+    function parseSeq(count) {
+      const raw = sequenceEl.value.trim();
+      const from = Math.max(0, Math.min(count - 1, Number(fromEl.value) || 0));
+      const to = Math.max(from, Math.min(count - 1, Number(toEl.value) || (count - 1)));
+      if (!raw) return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+      return raw.split(",")
+        .map((v) => Number(v.trim()))
+        .filter((n) => Number.isFinite(n) && n >= 0 && n < count);
+    }
+
+    function applyPreset(path) {
+      const p = presets[path];
+      if (!p) return;
+      colsEl.value = p.cols;
+      rowsEl.value = p.rows;
+      countEl.value = p.count;
+      fromEl.value = Number.isFinite(p.from) ? p.from : 0;
+      toEl.value = Number.isFinite(p.to) ? p.to : (p.count - 1);
+      cutxEl.value = p.cutx || 0;
+      cutyEl.value = p.cuty || 0;
+      cutwEl.value = p.cutw || 0;
+      cuthEl.value = p.cuth || 0;
+      stepxEl.value = p.stepx || 0;
+      stepyEl.value = p.stepy || 0;
+      rowshiftxEl.value = p.rowshiftx || 0;
+      rowshiftyEl.value = p.rowshifty || 0;
+      fpsEl.value = p.fps;
+      scaleEl.value = p.scale;
+      xoffEl.value = 0;
+      yoffEl.value = 0;
+      sequenceEl.value = p.sequence || "";
+    }
+
+    function loadImage() {
+      const path = spriteEl.value;
+      img = new Image();
+      img.onload = () => {
+        updateMeta();
+        drawAtlas();
+        drawEditor();
+      };
+      img.onerror = () => {
+        metaEl.innerHTML = "<div>Bild konnte nicht geladen werden.</div>";
+      };
+      img.src = path;
+    }
+
+    function frameGeom() {
+      const cols = Math.max(1, Number(colsEl.value) || 1);
+      const rows = Math.max(1, Number(rowsEl.value) || 1);
+      const count = Math.max(1, Number(countEl.value) || 1);
+      const cutx = Math.max(0, Number(cutxEl.value) || 0);
+      const cuty = Math.max(0, Number(cutyEl.value) || 0);
+      const cutwInput = Math.max(0, Number(cutwEl.value) || 0);
+      const cuthInput = Math.max(0, Number(cuthEl.value) || 0);
+      const availW = img ? Math.max(1, img.width - cutx) : 1;
+      const availH = img ? Math.max(1, img.height - cuty) : 1;
+      const cutw = cutwInput > 0 ? Math.min(cutwInput, availW) : availW;
+      const cuth = cuthInput > 0 ? Math.min(cuthInput, availH) : availH;
+      const fw = Math.max(1, Math.floor(cutw / cols));
+      const fh = Math.max(1, Math.floor(cuth / rows));
+      const stepx = Math.max(1, Number(stepxEl.value) || fw);
+      const stepy = Math.max(1, Number(stepyEl.value) || fh);
+      const rowshiftx = Number(rowshiftxEl.value) || 0;
+      const rowshifty = Number(rowshiftyEl.value) || 0;
+      return { cols, rows, count, fw, fh, cutx, cuty, cutw, cuth, stepx, stepy, rowshiftx, rowshifty };
+    }
+
+    function frameRect(i, fw, fh, cols, cutx, cuty, stepx, stepy, rowshiftx, rowshifty) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const sx = cutx + col * stepx + row * rowshiftx;
+      const sy = cuty + row * stepy + row * rowshifty;
+      return { sx, sy, sw: fw, sh: fh };
+    }
+
+    function editorLayout() {
+      const g = frameGeom();
+      const src = editorSourceRect(g);
+      const pad = 10;
+      const maxW = editorCanvas.width - pad * 2;
+      const maxH = editorCanvas.height - pad * 2;
+      const scale = Math.min(maxW / src.sw, maxH / src.sh);
+      const dw = src.sw * scale;
+      const dh = src.sh * scale;
+      const dx = (editorCanvas.width - dw) * 0.5;
+      const dy = (editorCanvas.height - dh) * 0.5;
+      return { scale, dx, dy, dw, dh, src };
+    }
+
+    function editorSourceRect(g) {
+      if (!img) return { sx: 0, sy: 0, sw: 1, sh: 1 };
+      if (!editorCutZoomEl.checked) return { sx: 0, sy: 0, sw: img.width, sh: img.height };
+      const sx = clampInt(g.cutx, 0, img.width - 1);
+      const sy = clampInt(g.cuty, 0, img.height - 1);
+      const sw = clampInt(g.cutw, 1, img.width - sx);
+      const sh = clampInt(g.cuth, 1, img.height - sy);
+      return { sx, sy, sw, sh };
+    }
+
+    function imgToEditor(x, y) {
+      const l = editorLayout();
+      return { x: l.dx + (x - l.src.sx) * l.scale, y: l.dy + (y - l.src.sy) * l.scale };
+    }
+
+    function editorToImg(x, y) {
+      const l = editorLayout();
+      return { x: l.src.sx + (x - l.dx) / l.scale, y: l.src.sy + (y - l.dy) / l.scale };
+    }
+
+    function clampInt(v, min, max) {
+      return Math.max(min, Math.min(max, Math.round(v)));
+    }
+
+    function setGeomField(id, value) {
+      document.getElementById(id).value = String(value);
+    }
+
+    function drawAtlas() {
+      if (!img) return;
+      const { cols, count, fw, fh, cutx, cuty, stepx, stepy, rowshiftx, rowshifty } = frameGeom();
+      const debugAlpha = !!dbgAlphaEl.checked;
+      const threshold = Math.max(1, Number(dbgThreshEl.value) || 80);
+      const thumb = 96;
+      const pad = 10;
+      const itemsPerRow = Math.max(1, Math.floor((atlasCanvas.width - pad) / (thumb + pad)));
+      const rowsNeeded = Math.ceil(count / itemsPerRow);
+      const h = rowsNeeded * (thumb + 24 + pad) + pad;
+      atlasCanvas.height = Math.max(140, h);
+
+      actx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+      actx.fillStyle = "#d9ecf8";
+      actx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+
+      for (let i = 0; i < count; i++) {
+        const rx = i % itemsPerRow;
+        const ry = Math.floor(i / itemsPerRow);
+        const x = pad + rx * (thumb + pad);
+        const y = pad + ry * (thumb + 24 + pad);
+        const r = frameRect(i, fw, fh, cols, cutx, cuty, stepx, stepy, rowshiftx, rowshifty);
+        actx.fillStyle = "#ffffff";
+        actx.fillRect(x, y, thumb, thumb);
+        actx.strokeStyle = "#b7cad5";
+        actx.strokeRect(x, y, thumb, thumb);
+
+        const scale = Math.min(thumb / r.sw, thumb / r.sh);
+        const dw = r.sw * scale;
+        const dh = r.sh * scale;
+        const dx = x + (thumb - dw) * 0.5;
+        const dy = y + (thumb - dh) * 0.5;
+        if (!debugAlpha) {
+          actx.drawImage(img, r.sx, r.sy, r.sw, r.sh, dx, dy, dw, dh);
+        } else {
+          drawAlphaDebugFrame(actx, img, r.sx, r.sy, r.sw, r.sh, dx, dy, dw, dh, threshold);
+        }
+
+        actx.fillStyle = "#284252";
+        actx.font = "12px Segoe UI";
+        actx.fillText(`#${i}`, x, y + thumb + 16);
+      }
+    }
+
+    function drawEditor() {
+      if (!img) return;
+      const g = frameGeom();
+      const l = editorLayout();
+      ectx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
+      ectx.fillStyle = "#d9ecf8";
+      ectx.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
+      ectx.drawImage(img, l.src.sx, l.src.sy, l.src.sw, l.src.sh, l.dx, l.dy, l.dw, l.dh);
+
+      // Draw row/column guides for quick visual validation.
+      ectx.strokeStyle = "#1f6c8ecc";
+      ectx.lineWidth = 1.2;
+      for (let c = 0; c <= g.cols; c++) {
+        const x = g.cutx + c * g.fw;
+        const p0 = imgToEditor(x, g.cuty);
+        const p1 = imgToEditor(x, g.cuty + g.cuth);
+        ectx.beginPath();
+        ectx.moveTo(p0.x, p0.y);
+        ectx.lineTo(p1.x, p1.y);
+        ectx.stroke();
+      }
+      for (let r = 0; r <= g.rows; r++) {
+        const y = g.cuty + r * g.fh;
+        const p0 = imgToEditor(g.cutx, y);
+        const p1 = imgToEditor(g.cutx + g.cutw, y);
+        ectx.beginPath();
+        ectx.moveTo(p0.x, p0.y);
+        ectx.lineTo(p1.x, p1.y);
+        ectx.stroke();
+      }
+
+      ectx.lineWidth = 1.4;
+      for (let i = 0; i < g.count; i++) {
+        const r = frameRect(i, g.fw, g.fh, g.cols, g.cutx, g.cuty, g.stepx, g.stepy, g.rowshiftx, g.rowshifty);
+        const p0 = imgToEditor(r.sx, r.sy);
+        const p1 = imgToEditor(r.sx + r.sw, r.sy + r.sh);
+        ectx.strokeStyle = i === (parsedSeq[tick] ?? 0) ? "#1f6c8e" : "#ffffffcc";
+        ectx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+      }
+
+      const handles = getEditorHandles();
+      handles.forEach((h) => {
+        const p = imgToEditor(h.x, h.y);
+        ectx.fillStyle = h.color;
+        ectx.fillRect(p.x - 5, p.y - 5, 10, 10);
+        ectx.strokeStyle = "#0f2230";
+        ectx.strokeRect(p.x - 5, p.y - 5, 10, 10);
+      });
+    }
+
+    function getEditorHandles() {
+      const g = frameGeom();
+      return [
+        { key: "origin", x: g.cutx, y: g.cuty, color: "#ff5f73" },
+        { key: "frame_w", x: g.cutx + g.fw, y: g.cuty, color: "#2f7ca1" },
+        { key: "frame_h", x: g.cutx, y: g.cuty + g.fh, color: "#2f7ca1" },
+        { key: "step_x", x: g.cutx + g.stepx, y: g.cuty, color: "#4c8a59" },
+        { key: "step_y", x: g.cutx, y: g.cuty + g.stepy, color: "#4c8a59" },
+        { key: "row_shift_x", x: g.cutx + g.rowshiftx, y: g.cuty + g.stepy, color: "#a05aa6" },
+        { key: "row_shift_y", x: g.cutx, y: g.cuty + g.stepy + g.rowshifty, color: "#a05aa6" },
+      ];
+    }
+
+    function updateMeta() {
+      if (!img) return;
+      const { cols, rows, count, fw, fh, cutx, cuty, cutw, cuth, stepx, stepy, rowshiftx, rowshifty } = frameGeom();
+      const debugAlpha = !!dbgAlphaEl.checked;
+      const threshold = Math.max(1, Number(dbgThreshEl.value) || 80);
+      const from = Math.max(0, Math.min(count - 1, Number(fromEl.value) || 0));
+      const to = Math.max(from, Math.min(count - 1, Number(toEl.value) || (count - 1)));
+      parsedSeq = parseSeq(count);
+      stepMs = Math.max(1, 1000 / (Number(fpsEl.value) || 10));
+      metaEl.innerHTML = `
+        <div class="ok">Bild geladen: ${img.width}x${img.height}</div>
+        <div>Grid: ${cols}x${rows} | Frame: ${fw}x${fh} | Count: ${count}</div>
+        <div>Range: ${from}..${to}</div>
+        <div>Cut: start(${cutx}, ${cuty}) size(${cutw}, ${cuth})</div>
+        <div>Step: (${stepx}, ${stepy}) | Row Shift: (${rowshiftx}, ${rowshifty})</div>
+        <div>Sequence: [${parsedSeq.join(", ")}]</div>
+        <div>Debug Alpha: ${debugAlpha ? "ON" : "OFF"} | Threshold: ${threshold}</div>
+        <div>FPS: ${fpsEl.value} | Scale: ${scaleEl.value} | Offset: (${xoffEl.value}, ${yoffEl.value})</div>
+      `;
+    }
+
+    function drawAlphaDebugFrame(ctx, image, sx, sy, sw, sh, dx, dy, dw, dh, threshold) {
+      const probe = document.createElement("canvas");
+      probe.width = sw;
+      probe.height = sh;
+      const pctx = probe.getContext("2d");
+      pctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+      const id = pctx.getImageData(0, 0, sw, sh);
+      const data = id.data;
+      let shadowBottom = -1;
+      let bodyBottom = -1;
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const i = (y * sw + x) * 4;
+          const a = data[i + 3];
+          if (a > 0) shadowBottom = y;
+          if (a >= threshold) bodyBottom = y;
+          if (a >= threshold) {
+            data[i] = 38;
+            data[i + 1] = 152;
+            data[i + 2] = 220;
+            data[i + 3] = 255;
+          } else if (a > 0) {
+            data[i] = 255;
+            data[i + 1] = 114;
+            data[i + 2] = 114;
+            data[i + 3] = 220;
+          } else {
+            data[i] = 255;
+            data[i + 1] = 255;
+            data[i + 2] = 255;
+            data[i + 3] = 0;
+          }
+        }
+      }
+      pctx.putImageData(id, 0, 0);
+      ctx.drawImage(probe, 0, 0, sw, sh, dx, dy, dw, dh);
+      if (shadowBottom >= 0) {
+        const y = dy + ((shadowBottom + 1) / sh) * dh;
+        ctx.strokeStyle = "#ff7272";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(dx, y);
+        ctx.lineTo(dx + dw, y);
+        ctx.stroke();
+      }
+      if (bodyBottom >= 0) {
+        const y = dy + ((bodyBottom + 1) / sh) * dh;
+        ctx.strokeStyle = "#2698dc";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(dx, y);
+        ctx.lineTo(dx + dw, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawPreview(ts) {
+      requestAnimationFrame(drawPreview);
+      if (!img) return;
+      if (!parsedSeq.length) return;
+
+      if (isPlaying && ts - lastStep >= stepMs) {
+        tick = (tick + 1) % parsedSeq.length;
+        lastStep = ts;
+      }
+
+      const { cols, fw, fh, cutx, cuty, stepx, stepy, rowshiftx, rowshifty } = frameGeom();
+      const frameIndex = parsedSeq[tick] ?? 0;
+      const r = frameRect(frameIndex, fw, fh, cols, cutx, cuty, stepx, stepy, rowshiftx, rowshifty);
+      const scale = Number(scaleEl.value) || 1;
+      const xoff = Number(xoffEl.value) || 0;
+      const yoff = Number(yoffEl.value) || 0;
+
+      pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+      pctx.fillStyle = "#cde7f7";
+      pctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      const groundY = previewCanvas.height - 64;
+      pctx.fillStyle = "#4d341f";
+      pctx.fillRect(0, groundY, previewCanvas.width, 10);
+      pctx.fillStyle = "#89b676";
+      pctx.fillRect(0, groundY + 10, previewCanvas.width, 40);
+
+      const dw = Math.floor(r.sw * scale);
+      const dh = Math.floor(r.sh * scale);
+      const x = Math.floor(previewCanvas.width * 0.5 - dw * 0.5 + xoff);
+      const y = Math.floor(groundY - dh + yoff);
+      pctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, x, y, dw, dh);
+
+      pctx.fillStyle = "#203844";
+      pctx.font = "14px Segoe UI";
+      pctx.fillText(`Frame ${frameIndex} | Tick ${tick + 1}/${parsedSeq.length}`, 12, 24);
+    }
+
+    function applyAll() {
+      tick = 0;
+      updateMeta();
+      drawAtlas();
+      drawEditor();
+    }
+
+    document.getElementById("btnApply").addEventListener("click", applyAll);
+    document.getElementById("btnPlay").addEventListener("click", () => { isPlaying = !isPlaying; });
+    document.getElementById("btnPing").addEventListener("click", () => {
+      const count = Math.max(1, Number(countEl.value) || 1);
+      const from = Math.max(0, Math.min(count - 1, Number(fromEl.value) || 0));
+      const to = Math.max(from, Math.min(count - 1, Number(toEl.value) || (count - 1)));
+      if (to - from < 1) return;
+      const seq = [];
+      for (let i = from; i <= to; i++) seq.push(i);
+      for (let i = to - 1; i > from; i--) seq.push(i);
+      sequenceEl.value = seq.join(",");
+      applyAll();
+    });
+
+    document.getElementById("btnCopy").addEventListener("click", async () => {
+      const g = frameGeom();
+      const obj = {
+        sprite: spriteEl.value,
+        cols: g.cols,
+        rows: g.rows,
+        count: g.count,
+        from: Number(fromEl.value),
+        to: Number(toEl.value),
+        cutx: g.cutx,
+        cuty: g.cuty,
+        cutw: g.cutw,
+        cuth: g.cuth,
+        stepx: g.stepx,
+        stepy: g.stepy,
+        rowshiftx: g.rowshiftx,
+        rowshifty: g.rowshifty,
+        fps: Number(fpsEl.value),
+        scale: Number(scaleEl.value),
+        sequence: sequenceEl.value.trim(),
+      };
+      const txt = JSON.stringify(obj, null, 2);
+      try {
+        await navigator.clipboard.writeText(txt);
+        metaEl.insertAdjacentHTML("beforeend", "<div class='ok'>JSON kopiert.</div>");
+      } catch {
+        metaEl.insertAdjacentHTML("beforeend", "<div>Clipboard nicht verfuegbar.</div>");
+      }
+    });
+
+    document.getElementById("btnEditorApply").addEventListener("click", applyAll);
+    btnEq.addEventListener("click", () => {
+      eqOn = !eqOn;
+      btnEq.textContent = `Aequidistant: ${eqOn ? "ON" : "OFF"}`;
+    });
+
+    editorCanvas.addEventListener("mousedown", (ev) => {
+      if (!img) return;
+      const rect = editorCanvas.getBoundingClientRect();
+      const mx = ev.clientX - rect.left;
+      const my = ev.clientY - rect.top;
+      const m = editorToImg(mx, my);
+      const tol = 10 / editorLayout().scale;
+      let best = null;
+      let bestD = Infinity;
+      getEditorHandles().forEach((h) => {
+        const dx = h.x - m.x;
+        const dy = h.y - m.y;
+        const d = Math.hypot(dx, dy);
+        if (d < bestD && d <= tol) {
+          best = h.key;
+          bestD = d;
+        }
+      });
+      dragMode = best;
+    });
+
+    window.addEventListener("mouseup", () => { dragMode = null; });
+    editorCanvas.addEventListener("mousemove", (ev) => {
+      if (!dragMode || !img) return;
+      const rect = editorCanvas.getBoundingClientRect();
+      const mx = ev.clientX - rect.left;
+      const my = ev.clientY - rect.top;
+      const m = editorToImg(mx, my);
+      const g = frameGeom();
+
+      if (dragMode === "origin") {
+        setGeomField("cutx", clampInt(m.x, 0, img.width - 1));
+        setGeomField("cuty", clampInt(m.y, 0, img.height - 1));
+      }
+      if (dragMode === "frame_w") {
+        const fw = clampInt(m.x - g.cutx, 1, img.width);
+        setGeomField("cutw", fw * g.cols);
+        if (eqOn) setGeomField("stepx", fw);
+      }
+      if (dragMode === "frame_h") {
+        const fh = clampInt(m.y - g.cuty, 1, img.height);
+        setGeomField("cuth", fh * g.rows);
+        if (eqOn) setGeomField("stepy", fh);
+      }
+      if (dragMode === "step_x") {
+        setGeomField("stepx", clampInt(m.x - g.cutx, 1, img.width));
+      }
+      if (dragMode === "step_y") {
+        setGeomField("stepy", clampInt(m.y - g.cuty, 1, img.height));
+      }
+      if (dragMode === "row_shift_x") {
+        setGeomField("rowshiftx", clampInt(m.x - g.cutx, -img.width, img.width));
+      }
+      if (dragMode === "row_shift_y") {
+        setGeomField("rowshifty", clampInt(m.y - (g.cuty + g.stepy), -img.height, img.height));
+      }
+
+      applyAll();
+    });
+
+    [colsEl, rowsEl, countEl, fromEl, toEl, cutxEl, cutyEl, cutwEl, cuthEl, stepxEl, stepyEl, rowshiftxEl, rowshiftyEl, fpsEl, scaleEl, xoffEl, yoffEl, sequenceEl, dbgAlphaEl, dbgThreshEl, editorCutZoomEl].forEach((el) => {
+      el.addEventListener("input", applyAll);
+    });
+
+    spriteEl.addEventListener("change", () => {
+      applyPreset(spriteEl.value);
+      loadImage();
+    });
+
+    applyPreset(spriteEl.value);
+    loadImage();
+    requestAnimationFrame(drawPreview);
+  </script>
+</body>
+</html>

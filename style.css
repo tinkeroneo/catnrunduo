@@ -1,0 +1,57 @@
+﻿:root {
+  --bg-top: #89c2ff;
+  --bg-bottom: #e9f8ff;
+  --ink: #1f2a44;
+  --panel: #ffffffcc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+
+body {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.hud {
+  width: min(960px, 100%);
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 24px #0f2a4f22;
+}
+
+.hud h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.hud p {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+}
+
+#game {
+  width: min(960px, 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px #0f2a4f33;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}

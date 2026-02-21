@@ -173,6 +173,8 @@ let enemyTextureKey = 'enemy';
 let enemyRunAnimKey = null;
 let enemyChaseAnimKey = null;
 let mobileFullscreenRequested = false;
+let mobileViewportBound = false;
+let mobileViewportHandler = null;
 let touchControls = {
   movePointerId: null,
   moveStartX: 0,
@@ -905,6 +907,8 @@ function create() {
   restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
   pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
   setupTouchControls(this);
+  bindMobileViewportSync(this);
+  syncMobileViewport(this);
 
   levelText = this.add
     .text(16, 40, `Level: ${currentLevel}/${MAX_LEVEL}`, {
@@ -2453,5 +2457,35 @@ function requestMobileFullscreen() {
     } catch {
       // Ignore fullscreen failures (iOS/Safari restrictions etc).
     }
+  }
+}
+
+function bindMobileViewportSync(scene) {
+  if (mobileViewportBound) return;
+  mobileViewportBound = true;
+  mobileViewportHandler = () => syncMobileViewport(sceneRef || scene);
+  window.addEventListener('resize', mobileViewportHandler, { passive: true });
+  if (window.visualViewport?.addEventListener) {
+    window.visualViewport.addEventListener('resize', mobileViewportHandler, { passive: true });
+  }
+}
+
+function syncMobileViewport(scene) {
+  const isMobile = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+  if (!isMobile) return;
+
+  const viewportW = Math.round(window.visualViewport?.width || window.innerWidth || 0);
+  const viewportH = Math.round(window.visualViewport?.height || window.innerHeight || 0);
+  if (viewportW <= 0 || viewportH <= 0) return;
+
+  document.documentElement.style.setProperty('--app-height', `${viewportH}px`);
+  const gameEl = document.getElementById('game');
+  if (gameEl) {
+    gameEl.style.width = `${viewportW}px`;
+    gameEl.style.height = `${viewportH}px`;
+  }
+
+  if (scene?.scale) {
+    scene.scale.resize(viewportW, viewportH);
   }
 }

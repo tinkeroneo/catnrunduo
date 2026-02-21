@@ -38,10 +38,10 @@ const MOUSE_COLLECT_RADIUS_Y = 22;
 const ENEMY_STOMP_WINDOW_NORMAL = 18;
 const ENEMY_STOMP_WINDOW_BOSS = 24;
 const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
-const TOUCH_MOVE_DEADZONE_PX = 18;
-const TOUCH_SWIPE_UP_MIN_PX = 34;
-const TOUCH_SWIPE_SIDE_MIN_PX = 20;
-const TOUCH_SWIPE_MOVE_MS = 160;
+const TOUCH_MOVE_DEADZONE_PX = 12;
+const TOUCH_SWIPE_UP_MIN_PX = 24;
+const TOUCH_SWIPE_SIDE_MIN_PX = 14;
+const TOUCH_SWIPE_MOVE_MS = 220;
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
 const THEMES = [
@@ -90,6 +90,9 @@ const config = {
   backgroundColor: '#8fd3ff',
   pixelArt: true,
   antialias: false,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+  },
   audio: {
     noAudio: true,
   },
@@ -169,15 +172,13 @@ let mouseTextureKey = 'mouse';
 let enemyTextureKey = 'enemy';
 let enemyRunAnimKey = null;
 let enemyChaseAnimKey = null;
+let mobileFullscreenRequested = false;
 let touchControls = {
   movePointerId: null,
   moveStartX: 0,
   moveX: 0,
   moveDir: 0,
-  jumpPointerId: null,
-  jumpStartX: 0,
-  jumpStartY: 0,
-  jumpConsumed: false,
+  swipePointers: new Map(),
   jumpQueued: false,
   swipeMoveDir: 0,
   swipeMoveUntil: 0,
@@ -2369,16 +2370,14 @@ function setupTouchControls(scene) {
     moveStartX: 0,
     moveX: 0,
     moveDir: 0,
-    jumpPointerId: null,
-    jumpStartX: 0,
-    jumpStartY: 0,
-    jumpConsumed: false,
+    swipePointers: new Map(),
     jumpQueued: false,
     swipeMoveDir: 0,
     swipeMoveUntil: 0,
   };
 
   const onDown = (pointer) => {
+    requestMobileFullscreen();
     const half = scene.scale.width * 0.5;
     if (pointer.x < half) {
       if (touchControls.movePointerId == null) {
@@ -2387,14 +2386,12 @@ function setupTouchControls(scene) {
         touchControls.moveX = pointer.x;
         touchControls.moveDir = 0;
       }
-      return;
     }
-    if (touchControls.jumpPointerId == null) {
-      touchControls.jumpPointerId = pointer.id;
-      touchControls.jumpStartX = pointer.x;
-      touchControls.jumpStartY = pointer.y;
-      touchControls.jumpConsumed = false;
-    }
+    touchControls.swipePointers.set(pointer.id, {
+      startX: pointer.x,
+      startY: pointer.y,
+      consumed: false,
+    });
   };
 
   const onMove = (pointer) => {
@@ -2406,16 +2403,17 @@ function setupTouchControls(scene) {
       else touchControls.moveDir = 0;
     }
 
-    if (touchControls.jumpPointerId === pointer.id && !touchControls.jumpConsumed) {
-      const dx = pointer.x - touchControls.jumpStartX;
-      const up = touchControls.jumpStartY - pointer.y;
+    const swipe = touchControls.swipePointers.get(pointer.id);
+    if (swipe && !swipe.consumed) {
+      const dx = pointer.x - swipe.startX;
+      const up = swipe.startY - pointer.y;
       if (up >= TOUCH_SWIPE_UP_MIN_PX) {
         touchControls.jumpQueued = true;
         if (Math.abs(dx) >= TOUCH_SWIPE_SIDE_MIN_PX) {
           touchControls.swipeMoveDir = dx > 0 ? 1 : -1;
           touchControls.swipeMoveUntil = scene.time.now + TOUCH_SWIPE_MOVE_MS;
         }
-        touchControls.jumpConsumed = true;
+        swipe.consumed = true;
       }
     }
   };
@@ -2425,10 +2423,7 @@ function setupTouchControls(scene) {
       touchControls.movePointerId = null;
       touchControls.moveDir = 0;
     }
-    if (touchControls.jumpPointerId === pointer.id) {
-      touchControls.jumpPointerId = null;
-      touchControls.jumpConsumed = false;
-    }
+    touchControls.swipePointers.delete(pointer.id);
   };
 
   scene.input.on('pointerdown', onDown);
@@ -2442,4 +2437,21 @@ function setupTouchControls(scene) {
     scene.input.off('pointerup', onUp);
     scene.input.off('pointerupoutside', onUp);
   });
+}
+
+function requestMobileFullscreen() {
+  if (mobileFullscreenRequested) return;
+  mobileFullscreenRequested = true;
+  const isMobile = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+  if (!isMobile) return;
+  if (document.fullscreenElement) return;
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if (typeof req === 'function') {
+    try {
+      req.call(el);
+    } catch {
+      // Ignore fullscreen failures (iOS/Safari restrictions etc).
+    }
+  }
 }

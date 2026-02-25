@@ -47,8 +47,8 @@ const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
 const TOUCH_PROFILE_STORAGE_KEY = 'catPlatformer.touchProfile';
-const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
-const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
+const DOG_SHEET_KEYS = ['dog_sheet_new'];
+const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new'];
 const URL_QUERY = new URLSearchParams(window.location.search);
 const DEBUG_HITBOXES_ENABLED = URL_QUERY.get('debug') === '1';
 const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
@@ -223,9 +223,9 @@ let touchControls = {
 
 function preload() {
   if (!this.textures.exists('cat_sheet')) {
-    this.load.spritesheet('cat_sheet', 'assets/cat/cat_default16_4x4.png', {
-      frameWidth: 252,
-      frameHeight: 252,
+    this.load.spritesheet('cat_sheet', 'assets/cat/Cat platformer sprite.png', {
+      frameWidth: 256,
+      frameHeight: 256,
     });
   }
   if (!this.textures.exists('mouse_sheet')) {
@@ -234,17 +234,8 @@ function preload() {
   if (!this.textures.exists('dog_sheet_new')) {
     this.load.image('dog_sheet_new', 'assets/dog_default12_3x4.png');
   }
-  if (!this.textures.exists('dog_sheet_legacy')) {
-    this.load.image('dog_sheet_legacy', 'assets/dog sprite.png');
-  }
   if (!this.textures.exists('dog_chase_sheet_new')) {
     this.load.image('dog_chase_sheet_new', 'assets/dog_chase12_3x4.png');
-  }
-  if (!this.textures.exists('dog_chase_sheet_new_nodot')) {
-    this.load.image('dog_chase_sheet_new_nodot', 'assets/dog_chase12_3x4_png');
-  }
-  if (!this.textures.exists('dog_chase_sheet_legacy')) {
-    this.load.image('dog_chase_sheet_legacy', 'assets/dog chase sprite.png');
   }
 
   if (!this.textures.exists('ground')) this.textures.generate('ground', {
@@ -1432,9 +1423,10 @@ function buildCleanSheetFrames(scene, sourceTextureKey, outputPrefix, frameCount
   const keys = [];
   if (!scene.textures.exists(sourceTextureKey)) return keys;
   const tex = scene.textures.get(sourceTextureKey);
+  const frameNames = getOrderedTextureFrameNames(tex, frameCount);
 
-  for (let i = 0; i < frameCount; i++) {
-    const frame = tex.get(i);
+  for (let i = 0; i < frameNames.length; i++) {
+    const frame = tex.get(frameNames[i]);
     if (!frame || !frame.source || !frame.source.image) continue;
 
     const key = `${outputPrefix}_${i}`;
@@ -1485,6 +1477,22 @@ function buildCleanSheetFrames(scene, sourceTextureKey, outputPrefix, frameCount
   }
 
   return keys;
+}
+
+function getOrderedTextureFrameNames(texture, maxCount) {
+  if (!texture?.getFrameNames) return [];
+  const names = texture.getFrameNames()
+    .filter((name) => name !== '__BASE')
+    .map((name) => String(name));
+  if (names.length === 0) return [];
+
+  const numericNames = names.filter((name) => /^-?\d+$/.test(name));
+  if (numericNames.length === names.length) {
+    numericNames.sort((a, b) => Number(a) - Number(b));
+    return numericNames.slice(0, Math.max(0, maxCount));
+  }
+
+  return names.slice(0, Math.max(0, maxCount));
 }
 
 function buildGridCleanFrames(scene, sourceTextureKey, outputPrefix, cols, rows, frameCount, targetW, targetH, baseLineY) {
@@ -1542,7 +1550,7 @@ function pickExistingTextureKey(scene, keys) {
 }
 
 function isNewDogSheetKey(key) {
-  return key === 'dog_sheet_new' || key === 'dog_chase_sheet_new' || key === 'dog_chase_sheet_new_nodot';
+  return key === 'dog_sheet_new' || key === 'dog_chase_sheet_new';
 }
 
 function findOpaqueBounds(ctx, width, height, alphaThreshold) {

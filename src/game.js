@@ -45,6 +45,7 @@ const TOUCH_SWIPE_UP_MIN_PX = 20;
 const TOUCH_SWIPE_SIDE_MIN_PX = 12;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
+const MOBILE_PARALLAX_DENSITY = 0.65;
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
 const THEMES = [
@@ -194,6 +195,11 @@ let touchControls = {
   jumpQueued: false,
   swipeLatchPointerId: null,
   swipeLatchDir: 0,
+  tuning: {
+    deadzonePx: TOUCH_MOVE_DEADZONE_PX,
+    swipeUpMinPx: TOUCH_SWIPE_UP_MIN_PX,
+    swipeSideMinPx: TOUCH_SWIPE_SIDE_MIN_PX,
+  },
 };
 
 function preload() {
@@ -2030,6 +2036,9 @@ function createParallaxBackground(scene, theme) {
   const span = WORLD_WIDTH + 900;
   const centerX = WORLD_WIDTH / 2;
   const key = theme?.key ?? 'forest';
+  const isMobile = isMobileRuntime();
+  const density = isMobile ? MOBILE_PARALLAX_DENSITY : 1;
+  const stepMul = isMobile ? 1.45 : 1;
 
   const haze = scene.add
     .rectangle(centerX, WORLD_HEIGHT * 0.38, span, WORLD_HEIGHT * 0.76, palette.haze)
@@ -2039,7 +2048,8 @@ function createParallaxBackground(scene, theme) {
   parallaxLayers.push(haze);
 
   if (key !== 'city') {
-    const cloudCount = key === 'ocean' ? 8 : 10;
+    const cloudCountBase = key === 'ocean' ? 8 : 10;
+    const cloudCount = Math.max(4, Math.round(cloudCountBase * density));
     for (let i = 0; i < cloudCount; i++) {
       const x = 80 + i * 290 + rand01(currentLevel * 11, i) * 130;
       const y = 84 + rand01(currentLevel * 17, i) * 145;
@@ -2061,7 +2071,7 @@ function createParallaxBackground(scene, theme) {
   }
 
   if (key === 'forest') {
-    for (let x = -240, i = 0; x <= WORLD_WIDTH + 360; x += 220, i++) {
+    for (let x = -240, i = 0; x <= WORLD_WIDTH + 360; x += Math.round(220 * stepMul), i++) {
       const hillWidth = 300 + rand01(currentLevel * 43, i) * 120;
       const hillHeight = 140 + rand01(currentLevel * 47, i) * 90;
       const hill = scene.add
@@ -2078,7 +2088,7 @@ function createParallaxBackground(scene, theme) {
       .setDepth(-33);
     parallaxLayers.push(farBase);
 
-    for (let x = -80, i = 0; x <= WORLD_WIDTH + 200; x += 170, i++) {
+    for (let x = -80, i = 0; x <= WORLD_WIDTH + 200; x += Math.round(170 * stepMul), i++) {
       const trunkH = 48 + rand01(currentLevel * 53, i) * 50;
       const trunk = scene.add
         .rectangle(x, WORLD_HEIGHT - 38, 14, trunkH, palette.near, 0.88)
@@ -2092,7 +2102,7 @@ function createParallaxBackground(scene, theme) {
       parallaxLayers.push(trunk, crown);
     }
   } else if (key === 'ocean') {
-    for (let x = -180, i = 0; x <= WORLD_WIDTH + 320; x += 260, i++) {
+    for (let x = -180, i = 0; x <= WORLD_WIDTH + 320; x += Math.round(260 * stepMul), i++) {
       const island = scene.add
         .ellipse(x, WORLD_HEIGHT - 122, 230 + rand01(currentLevel * 59, i) * 100, 70 + rand01(currentLevel * 61, i) * 34, palette.far, 0.92)
         .setOrigin(0.5, 1)
@@ -2110,7 +2120,7 @@ function createParallaxBackground(scene, theme) {
       .setDepth(-29);
     parallaxLayers.push(seaBack, seaFront);
   } else if (key === 'desert') {
-    for (let x = -220, i = 0; x <= WORLD_WIDTH + 360; x += 210, i++) {
+    for (let x = -220, i = 0; x <= WORLD_WIDTH + 360; x += Math.round(210 * stepMul), i++) {
       const dune = scene.add
         .ellipse(x, WORLD_HEIGHT - 95, 320 + rand01(currentLevel * 67, i) * 120, 120 + rand01(currentLevel * 71, i) * 50, palette.far, 0.93)
         .setOrigin(0.5, 1)
@@ -2123,7 +2133,7 @@ function createParallaxBackground(scene, theme) {
       .setScrollFactor(0.34)
       .setDepth(-33);
     parallaxLayers.push(sand);
-    for (let x = -60, i = 0; x <= WORLD_WIDTH + 180; x += 220, i++) {
+    for (let x = -60, i = 0; x <= WORLD_WIDTH + 180; x += Math.round(220 * stepMul), i++) {
       const h = 56 + rand01(currentLevel * 73, i) * 28;
       const cactusMain = scene.add
         .rectangle(x, WORLD_HEIGHT - 38, 14, h, palette.near, 0.9)
@@ -2137,7 +2147,7 @@ function createParallaxBackground(scene, theme) {
       parallaxLayers.push(cactusMain, arm);
     }
   } else if (key === 'mountain') {
-    for (let x = -180, i = 0; x <= WORLD_WIDTH + 300; x += 240, i++) {
+    for (let x = -180, i = 0; x <= WORLD_WIDTH + 300; x += Math.round(240 * stepMul), i++) {
       const ridge = scene.add
         .rectangle(x, WORLD_HEIGHT - 115, 150 + rand01(currentLevel * 79, i) * 70, 150 + rand01(currentLevel * 83, i) * 90, palette.far, 0.92)
         .setOrigin(0.5, 1)
@@ -2151,7 +2161,7 @@ function createParallaxBackground(scene, theme) {
       .setScrollFactor(0.34)
       .setDepth(-33);
     parallaxLayers.push(stone);
-    for (let x = -80, i = 0; x <= WORLD_WIDTH + 220; x += 200, i++) {
+    for (let x = -80, i = 0; x <= WORLD_WIDTH + 220; x += Math.round(200 * stepMul), i++) {
       const pine = scene.add
         .ellipse(x, WORLD_HEIGHT - 58, 62, 74 + rand01(currentLevel * 89, i) * 40, palette.near, 0.86)
         .setOrigin(0.5, 1)
@@ -2160,7 +2170,7 @@ function createParallaxBackground(scene, theme) {
       parallaxLayers.push(pine);
     }
   } else {
-    for (let x = -120, i = 0; x <= WORLD_WIDTH + 220; x += 120, i++) {
+    for (let x = -120, i = 0; x <= WORLD_WIDTH + 220; x += Math.round(120 * stepMul), i++) {
       const towerH = 120 + rand01(currentLevel * 97, i) * 190;
       const tower = scene.add
         .rectangle(x, WORLD_HEIGHT - 38, 78 + rand01(currentLevel * 101, i) * 24, towerH, palette.near, 0.86)
@@ -2416,6 +2426,7 @@ function setupTouchControls(scene) {
     jumpQueued: false,
     swipeLatchPointerId: null,
     swipeLatchDir: 0,
+    tuning: resolveTouchTuning(scene),
   };
 
   const onDown = (pointer) => {
@@ -2439,8 +2450,8 @@ function setupTouchControls(scene) {
     if (touchControls.movePointerId === pointer.id && touchControls.moveMode === 'drag') {
       touchControls.moveX = pointer.x;
       const dx = touchControls.moveX - touchControls.moveStartX;
-      if (dx > TOUCH_MOVE_DEADZONE_PX) touchControls.moveDir = 1;
-      else if (dx < -TOUCH_MOVE_DEADZONE_PX) touchControls.moveDir = -1;
+      if (dx > touchControls.tuning.deadzonePx) touchControls.moveDir = 1;
+      else if (dx < -touchControls.tuning.deadzonePx) touchControls.moveDir = -1;
       else touchControls.moveDir = 0;
     }
 
@@ -2448,9 +2459,9 @@ function setupTouchControls(scene) {
     if (swipe && !swipe.consumed) {
       const dx = pointer.x - swipe.startX;
       const up = swipe.startY - pointer.y;
-      if (up >= TOUCH_SWIPE_UP_MIN_PX) {
+      if (up >= touchControls.tuning.swipeUpMinPx) {
         touchControls.jumpQueued = true;
-        if (Math.abs(dx) >= TOUCH_SWIPE_SIDE_MIN_PX) {
+        if (Math.abs(dx) >= touchControls.tuning.swipeSideMinPx) {
           touchControls.swipeLatchPointerId = pointer.id;
           touchControls.swipeLatchDir = dx > 0 ? 1 : -1;
         }
@@ -2558,6 +2569,7 @@ function syncMobileViewport(scene) {
   if (scene?.scale) {
     scene.scale.resize(viewportW, viewportH);
   }
+  touchControls.tuning = resolveTouchTuning(scene);
 }
 
 function updateCameraLookAhead() {
@@ -2571,4 +2583,23 @@ function updateCameraLookAhead() {
 function restartRun() {
   currentLevel = 1;
   sceneRef.scene.restart();
+}
+
+function isMobileRuntime() {
+  return window.matchMedia?.('(max-width: 900px)').matches ?? false;
+}
+
+function resolveTouchTuning(scene) {
+  const height = Math.max(360, Math.round(scene?.scale?.height || window.innerHeight || 720));
+  const profileParam = new URLSearchParams(window.location.search).get('touch');
+  const profile = profileParam === 'precise' ? 'precise' : 'easy';
+  const scale = Math.max(0.75, Math.min(1.35, height / 820));
+  const base = profile === 'precise'
+    ? { deadzonePx: 12, swipeUpMinPx: 24, swipeSideMinPx: 14 }
+    : { deadzonePx: 9, swipeUpMinPx: 18, swipeSideMinPx: 10 };
+  return {
+    deadzonePx: Math.round(base.deadzonePx * scale),
+    swipeUpMinPx: Math.round(base.swipeUpMinPx * scale),
+    swipeSideMinPx: Math.round(base.swipeSideMinPx * scale),
+  };
 }

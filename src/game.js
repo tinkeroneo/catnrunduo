@@ -1044,10 +1044,10 @@ function create() {
     restartTouchButton = this.add
       .text(940, 14, 'Restart', {
         fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '18px',
+        fontSize: '20px',
         color: '#ffffff',
         backgroundColor: '#1f2a44cc',
-        padding: { x: 10, y: 6 },
+        padding: { x: 12, y: 8 },
       })
       .setOrigin(1, 0)
       .setScrollFactor(0)
@@ -1059,10 +1059,10 @@ function create() {
     pauseTouchButton = this.add
       .text(940, 50, 'Pause', {
         fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '16px',
+        fontSize: '18px',
         color: '#ffffff',
         backgroundColor: '#1f2a44cc',
-        padding: { x: 10, y: 5 },
+        padding: { x: 12, y: 7 },
       })
       .setOrigin(1, 0)
       .setScrollFactor(0)
@@ -1074,10 +1074,10 @@ function create() {
     touchProfileButton = this.add
       .text(940, 86, `Touch: ${touchProfileMode}`, {
         fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '16px',
+        fontSize: '18px',
         color: '#ffffff',
         backgroundColor: '#1f2a44cc',
-        padding: { x: 10, y: 5 },
+        padding: { x: 12, y: 7 },
       })
       .setOrigin(1, 0)
       .setScrollFactor(0)
@@ -1088,6 +1088,7 @@ function create() {
       setTouchProfileMode(next, this);
       setStatus(`Touch-Profil: ${touchProfileMode}`, 1200);
     });
+    layoutMobileActionButtons(this);
   } else {
     restartTouchButton = null;
     pauseTouchButton = null;
@@ -2602,6 +2603,7 @@ function syncMobileViewport(scene) {
     scene.scale.resize(viewportW, viewportH);
   }
   touchControls.tuning = resolveTouchTuning(scene);
+  layoutMobileActionButtons(scene);
 }
 
 function updateCameraLookAhead() {
@@ -2681,4 +2683,34 @@ function setTouchProfileMode(mode, scene) {
     // Ignore storage issues.
   }
   touchControls.tuning = resolveTouchTuning(scene || sceneRef);
+  layoutMobileActionButtons(scene || sceneRef);
+}
+
+function getMobileTopInsetPx() {
+  const viewportTop = Math.round(window.visualViewport?.offsetTop || 0);
+  return Math.max(8, viewportTop + 8);
+}
+
+function layoutMobileActionButtons(scene) {
+  const isMobile = isMobileRuntime();
+  if (!isMobile) return;
+  const width = Math.round(scene?.scale?.width || window.innerWidth || 960);
+  const rightX = width - 12;
+  const top = getMobileTopInsetPx();
+  const gap = 10;
+
+  if (restartTouchButton) {
+    restartTouchButton.setPosition(rightX, top);
+  }
+
+  if (pauseTouchButton) {
+    const y = top + (restartTouchButton ? restartTouchButton.height + gap : 0);
+    pauseTouchButton.setPosition(rightX, y);
+  }
+
+  if (touchProfileButton) {
+    const anchor = pauseTouchButton || restartTouchButton;
+    const y = top + (anchor ? anchor.y + anchor.height + gap - top : 0);
+    touchProfileButton.setPosition(rightX, y);
+  }
 }

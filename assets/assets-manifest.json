@@ -1,0 +1,27 @@
+{
+  "cat": {
+    "spritesheet": {
+      "path": "assets/cat/Cat platformer sprite.png",
+      "frameWidth": 256,
+      "frameHeight": 256
+    }
+  },
+  "mouse": {
+    "sheet": {
+      "path": "assets/mouse_default6_2x3.png"
+    }
+  },
+  "dog": {
+    "runSheet": {
+      "path": "assets/dog_default12_3x4.png"
+    },
+    "chaseSheet": {
+      "path": "assets/dog_chase12_3x4.png"
+    }
+  },
+  "audio": {
+    "bgm": {
+      "path": "assets/audio/BGmusic.mp3"
+    }
+  }
+}

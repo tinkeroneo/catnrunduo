@@ -62,6 +62,33 @@ const COLLIDER_PROFILES = {
   mouseSheet: { type: 'fixed', width: 16, height: 10, offsetX: 7, offsetY: 20 },
   mouseFallback: { type: 'ratio', width: 0.8, height: 0.65, offsetX: 0.1, offsetY: 0.25 },
 };
+const DEFAULT_ASSET_MANIFEST = {
+  cat: {
+    spritesheet: {
+      path: 'assets/cat/Cat platformer sprite.png',
+      frameWidth: 256,
+      frameHeight: 256,
+    },
+  },
+  mouse: {
+    sheet: { path: 'assets/mouse_default6_2x3.png' },
+  },
+  dog: {
+    runSheet: { path: 'assets/dog_default12_3x4.png' },
+    chaseSheet: { path: 'assets/dog_chase12_3x4.png' },
+  },
+  audio: {
+    bgm: { path: 'assets/audio/BGmusic.mp3' },
+  },
+};
+const ANIM_CONFIG = {
+  catRunFallback: { fps: 8, repeat: -1 },
+  catRunSheet: { fps: 10, repeat: -1 },
+  catRunSheetClean: { fps: 11, repeat: -1, order: CAT_CLEAN_RUN_FRAME_ORDER },
+  dogRun: { fps: 10, repeat: -1 },
+  dogChase: { fps: 12, repeat: -1 },
+};
+let assetManifest = DEFAULT_ASSET_MANIFEST;
 const THEMES = [
   {
     key: 'forest',
@@ -128,7 +155,7 @@ const config = {
   },
 };
 
-const game = new Phaser.Game(config);
+let game = null;
 
 let player;
 let cursors;
@@ -204,6 +231,7 @@ let mobileViewportHandler = null;
 let cameraLookAheadX = 0;
 let touchProfileMode = 'easy';
 let debugHitboxesActive = false;
+let animationGlobalTimeScale = 1;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -223,19 +251,19 @@ let touchControls = {
 
 function preload() {
   if (!this.textures.exists('cat_sheet')) {
-    this.load.spritesheet('cat_sheet', 'assets/cat/Cat platformer sprite.png', {
-      frameWidth: 256,
-      frameHeight: 256,
+    this.load.spritesheet('cat_sheet', assetManifest.cat.spritesheet.path, {
+      frameWidth: assetManifest.cat.spritesheet.frameWidth,
+      frameHeight: assetManifest.cat.spritesheet.frameHeight,
     });
   }
   if (!this.textures.exists('mouse_sheet')) {
-    this.load.image('mouse_sheet', 'assets/mouse_default6_2x3.png');
+    this.load.image('mouse_sheet', assetManifest.mouse.sheet.path);
   }
   if (!this.textures.exists('dog_sheet_new')) {
-    this.load.image('dog_sheet_new', 'assets/dog_default12_3x4.png');
+    this.load.image('dog_sheet_new', assetManifest.dog.runSheet.path);
   }
   if (!this.textures.exists('dog_chase_sheet_new')) {
-    this.load.image('dog_chase_sheet_new', 'assets/dog_chase12_3x4.png');
+    this.load.image('dog_chase_sheet_new', assetManifest.dog.chaseSheet.path);
   }
 
   if (!this.textures.exists('ground')) this.textures.generate('ground', {
@@ -734,26 +762,14 @@ function create() {
     if (dogRunKeys.length > 0) {
       enemyTextureKey = dogRunKeys[0];
       enemyRunAnimKey = 'dog_run_raw';
-      if (this.anims.exists(enemyRunAnimKey)) this.anims.remove(enemyRunAnimKey);
-      this.anims.create({
-        key: enemyRunAnimKey,
-        frames: dogRunKeys.map((key) => ({ key })),
-        frameRate: 10,
-        repeat: -1,
-      });
+      createOrReplaceAnim(this, enemyRunAnimKey, dogRunKeys.map((key) => ({ key })), ANIM_CONFIG.dogRun);
     } else {
       useSheetDog = false;
       enemyTextureKey = 'enemy';
     }
     if (dogChaseKeys.length > 0) {
       enemyChaseAnimKey = 'dog_chase_raw';
-      if (this.anims.exists(enemyChaseAnimKey)) this.anims.remove(enemyChaseAnimKey);
-      this.anims.create({
-        key: enemyChaseAnimKey,
-        frames: dogChaseKeys.map((key) => ({ key })),
-        frameRate: 12,
-        repeat: -1,
-      });
+      createOrReplaceAnim(this, enemyChaseAnimKey, dogChaseKeys.map((key) => ({ key })), ANIM_CONFIG.dogChase);
     } else {
       enemyChaseAnimKey = null;
     }
@@ -767,17 +783,16 @@ function create() {
       const orderedRunKeys = CAT_CLEAN_RUN_FRAME_ORDER
         .map((idx) => cleanKeys[idx])
         .filter(Boolean);
-      const runKeys = orderedRunKeys.length >= 2
-        ? orderedRunKeys
+      const configOrderKeys = ANIM_CONFIG.catRunSheetClean.order
+        .map((idx) => cleanKeys[idx])
+        .filter(Boolean);
+      const runKeys = configOrderKeys.length >= 2
+        ? configOrderKeys
+        : orderedRunKeys.length >= 2
+          ? orderedRunKeys
         : cleanKeys.slice(0, Math.min(4, cleanKeys.length));
       catJumpTextureKey = cleanKeys[0] || runKeys[0];
-      if (this.anims.exists('cat_run_sheet_clean')) this.anims.remove('cat_run_sheet_clean');
-      this.anims.create({
-        key: 'cat_run_sheet_clean',
-        frames: runKeys.map((key) => ({ key })),
-        frameRate: 11,
-        repeat: -1,
-      });
+      createOrReplaceAnim(this, 'cat_run_sheet_clean', runKeys.map((key) => ({ key })), ANIM_CONFIG.catRunSheetClean);
     }
   }
 
@@ -794,21 +809,16 @@ function create() {
   }
 
   if (useSheetCat && !useCleanSheetCat && !this.anims.exists('cat_run_sheet')) {
-    this.anims.create({
-      key: 'cat_run_sheet',
-      frames: this.anims.generateFrameNumbers('cat_sheet', { start: 0, end: 3 }),
-      frameRate: 10,
-      repeat: -1,
-    });
+    createOrReplaceAnim(
+      this,
+      'cat_run_sheet',
+      this.anims.generateFrameNumbers('cat_sheet', { start: 0, end: 3 }),
+      ANIM_CONFIG.catRunSheet
+    );
   }
 
   if (!useSheetCat && !this.anims.exists('cat_run')) {
-    this.anims.create({
-      key: 'cat_run',
-      frames: [{ key: 'cat_run_0' }, { key: 'cat_run_1' }],
-      frameRate: 8,
-      repeat: -1,
-    });
+    createOrReplaceAnim(this, 'cat_run', [{ key: 'cat_run_0' }, { key: 'cat_run_1' }], ANIM_CONFIG.catRunFallback);
   }
 
   mice = this.physics.add.staticGroup();
@@ -1938,6 +1948,8 @@ function carryPlayerOnMovingPlatforms() {
 }
 
 function update() {
+  syncAnimationTiming();
+
   if (Phaser.Input.Keyboard.JustDown(debugKey)) {
     setArcadeDebug(sceneRef, !debugHitboxesActive);
     setStatus(`Hitbox-Overlay: ${debugHitboxesActive ? 'AN' : 'AUS'}`, 900);
@@ -2519,6 +2531,17 @@ function applyColliderProfile(sprite, profile, refreshStaticBody = false) {
   }
 }
 
+function createOrReplaceAnim(scene, key, frames, cfg) {
+  if (!scene || !key || !frames || frames.length === 0) return;
+  if (scene.anims.exists(key)) scene.anims.remove(key);
+  scene.anims.create({
+    key,
+    frames,
+    frameRate: cfg?.fps ?? 10,
+    repeat: cfg?.repeat ?? -1,
+  });
+}
+
 function setArcadeDebug(scene, enabled) {
   if (!scene?.physics?.world) return;
   const world = scene.physics.world;
@@ -2633,7 +2656,7 @@ function requestMobileFullscreen() {
 
 function initBgMusic() {
   if (!bgMusic) {
-    bgMusic = new Audio('assets/audio/BGmusic.mp3');
+    bgMusic = new Audio(assetManifest.audio.bgm.path);
     bgMusic.loop = true;
     bgMusic.volume = 0.32;
     bgMusic.preload = 'auto';
@@ -2799,3 +2822,63 @@ function layoutMobileActionButtons(scene) {
     touchProfileButton.setPosition(rightX, y);
   }
 }
+
+function syncAnimationTiming() {
+  if (!sceneRef?.anims || !sceneRef?.game?.loop) return;
+  const actualFps = sceneRef.game.loop.actualFps || 60;
+  const targetScale = clampValue(60 / actualFps, 0.85, 1.15);
+  if (Math.abs(targetScale - animationGlobalTimeScale) < 0.01) return;
+  animationGlobalTimeScale = targetScale;
+  sceneRef.anims.globalTimeScale = animationGlobalTimeScale;
+}
+
+function mergeAssetManifest(raw) {
+  return {
+    cat: {
+      spritesheet: {
+        path: raw?.cat?.spritesheet?.path || DEFAULT_ASSET_MANIFEST.cat.spritesheet.path,
+        frameWidth: Number(raw?.cat?.spritesheet?.frameWidth) || DEFAULT_ASSET_MANIFEST.cat.spritesheet.frameWidth,
+        frameHeight: Number(raw?.cat?.spritesheet?.frameHeight) || DEFAULT_ASSET_MANIFEST.cat.spritesheet.frameHeight,
+      },
+    },
+    mouse: {
+      sheet: {
+        path: raw?.mouse?.sheet?.path || DEFAULT_ASSET_MANIFEST.mouse.sheet.path,
+      },
+    },
+    dog: {
+      runSheet: {
+        path: raw?.dog?.runSheet?.path || DEFAULT_ASSET_MANIFEST.dog.runSheet.path,
+      },
+      chaseSheet: {
+        path: raw?.dog?.chaseSheet?.path || DEFAULT_ASSET_MANIFEST.dog.chaseSheet.path,
+      },
+    },
+    audio: {
+      bgm: {
+        path: raw?.audio?.bgm?.path || DEFAULT_ASSET_MANIFEST.audio.bgm.path,
+      },
+    },
+  };
+}
+
+function bootstrapGame() {
+  const manifestUrl = 'assets/assets-manifest.json';
+  fetch(manifestUrl, { cache: 'no-store' })
+    .then((resp) => (resp.ok ? resp.json() : null))
+    .then((manifestRaw) => {
+      if (manifestRaw) {
+        assetManifest = mergeAssetManifest(manifestRaw);
+      } else {
+        assetManifest = DEFAULT_ASSET_MANIFEST;
+      }
+    })
+    .catch(() => {
+      assetManifest = DEFAULT_ASSET_MANIFEST;
+    })
+    .finally(() => {
+      game = new Phaser.Game(config);
+    });
+}
+
+bootstrapGame();

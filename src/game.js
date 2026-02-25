@@ -116,6 +116,7 @@ const LEVEL_CHALLENGES = [
 const ADAPTIVE_ASSIST_ENEMY_SPEED_MUL = 0.94;
 const ADAPTIVE_ASSIST_RUN_MUL = 1.05;
 const ADAPTIVE_ASSIST_JUMP_DELTA = -24;
+const ADAPTIVE_PRESSURE_ENEMY_SPEED_MUL = 1.04;
 const MOBILE_BUTTON_SIZE_PX = 46;
 const MOBILE_BUTTON_ICONS = {
   restart: '↻',
@@ -235,6 +236,7 @@ let levelStomps = 0;
 let challengeSuccessStreak = 0;
 let challengeMissStreak = 0;
 let adaptiveAssistActive = false;
+let adaptivePressureActive = false;
 let respawnX = 100;
 let respawnY = WORLD_HEIGHT - 120;
 let scoreText;
@@ -712,6 +714,7 @@ function create() {
     challengeSuccessStreak = 0;
     challengeMissStreak = 0;
     adaptiveAssistActive = false;
+    adaptivePressureActive = false;
   }
 
   respawnX = 100;
@@ -735,6 +738,7 @@ function create() {
   currentLevelModifier = getLevelModifier(currentLevel);
   currentLevelChallenge = getLevelChallenge(currentLevel);
   adaptiveAssistActive = challengeMissStreak >= 2 && currentLevel > 2;
+  adaptivePressureActive = !adaptiveAssistActive && challengeSuccessStreak >= 3 && currentLevel > 3;
   levelLivesLost = 0;
   levelMaxCombo = 0;
   levelStomps = 0;
@@ -1147,8 +1151,9 @@ function create() {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
   } else {
     const assistPart = adaptiveAssistActive ? ' | Assist aktiv' : '';
+    const pressurePart = adaptivePressureActive ? ' | Fokus aktiv' : '';
     setStatus(
-      `Level ${currentLevel}: Mod ${currentLevelModifier.label} | Challenge: ${currentLevelChallenge.label}${assistPart}`,
+      `Level ${currentLevel}: Mod ${currentLevelModifier.label} | Challenge: ${currentLevelChallenge.label}${assistPart}${pressurePart}`,
       3400
     );
   }
@@ -1368,7 +1373,8 @@ function updateEnemies() {
     const isBoss = !!enemy.getData('isBoss');
     const isBossPhase2 = isBoss && !!enemy.getData('phase2');
     const assistEnemyMul = adaptiveAssistActive ? ADAPTIVE_ASSIST_ENEMY_SPEED_MUL : 1;
-    let speed = Math.round(baseSpeed * (currentLevelModifier.enemySpeedMul ?? 1) * assistEnemyMul);
+    const pressureEnemyMul = adaptivePressureActive ? ADAPTIVE_PRESSURE_ENEMY_SPEED_MUL : 1;
+    let speed = Math.round(baseSpeed * (currentLevelModifier.enemySpeedMul ?? 1) * assistEnemyMul * pressureEnemyMul);
     let dir = enemy.getData('dir');
     let isChasing = false;
 

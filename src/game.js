@@ -46,6 +46,7 @@ const TOUCH_SWIPE_SIDE_MIN_PX = 12;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
+const TOUCH_PROFILE_STORAGE_KEY = 'catPlatformer.touchProfile';
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
 const THEMES = [
@@ -164,6 +165,7 @@ let restartKey;
 let pauseKey;
 let pauseText;
 let restartTouchButton;
+let touchProfileButton;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -185,6 +187,7 @@ let mobileFullscreenRequested = false;
 let mobileViewportBound = false;
 let mobileViewportHandler = null;
 let cameraLookAheadX = 0;
+let touchProfileMode = 'easy';
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -1034,7 +1037,9 @@ function create() {
     .setVisible(false);
 
   const isMobileUi = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+  touchProfileMode = resolveInitialTouchProfile();
   if (isMobileUi) {
+    touchControls.tuning = resolveTouchTuning(this);
     restartTouchButton = this.add
       .text(940, 14, 'Restart', {
         fontFamily: 'Segoe UI, sans-serif',
@@ -1050,8 +1055,26 @@ function create() {
     restartTouchButton.on('pointerdown', () => {
       restartRun();
     });
+    touchProfileButton = this.add
+      .text(940, 50, `Touch: ${touchProfileMode}`, {
+        fontFamily: 'Segoe UI, sans-serif',
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#1f2a44cc',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(40)
+      .setInteractive({ useHandCursor: true });
+    touchProfileButton.on('pointerdown', () => {
+      const next = touchProfileMode === 'easy' ? 'precise' : 'easy';
+      setTouchProfileMode(next, this);
+      setStatus(`Touch-Profil: ${touchProfileMode}`, 1200);
+    });
   } else {
     restartTouchButton = null;
+    touchProfileButton = null;
   }
 
   initSfx(this);
@@ -2591,8 +2614,7 @@ function isMobileRuntime() {
 
 function resolveTouchTuning(scene) {
   const height = Math.max(360, Math.round(scene?.scale?.height || window.innerHeight || 720));
-  const profileParam = new URLSearchParams(window.location.search).get('touch');
-  const profile = profileParam === 'precise' ? 'precise' : 'easy';
+  const profile = touchProfileMode === 'precise' ? 'precise' : 'easy';
   const scale = Math.max(0.75, Math.min(1.35, height / 820));
   const base = profile === 'precise'
     ? { deadzonePx: 12, swipeUpMinPx: 24, swipeSideMinPx: 14 }
@@ -2602,4 +2624,27 @@ function resolveTouchTuning(scene) {
     swipeUpMinPx: Math.round(base.swipeUpMinPx * scale),
     swipeSideMinPx: Math.round(base.swipeSideMinPx * scale),
   };
+}
+
+function resolveInitialTouchProfile() {
+  const profileParam = new URLSearchParams(window.location.search).get('touch');
+  if (profileParam === 'precise' || profileParam === 'easy') return profileParam;
+  try {
+    const saved = window.localStorage.getItem(TOUCH_PROFILE_STORAGE_KEY);
+    if (saved === 'precise' || saved === 'easy') return saved;
+  } catch {
+    // Ignore storage issues.
+  }
+  return 'easy';
+}
+
+function setTouchProfileMode(mode, scene) {
+  touchProfileMode = mode === 'precise' ? 'precise' : 'easy';
+  if (touchProfileButton) touchProfileButton.setText(`Touch: ${touchProfileMode}`);
+  try {
+    window.localStorage.setItem(TOUCH_PROFILE_STORAGE_KEY, touchProfileMode);
+  } catch {
+    // Ignore storage issues.
+  }
+  touchControls.tuning = resolveTouchTuning(scene || sceneRef);
 }

@@ -168,6 +168,8 @@ let parallaxLayers = [];
 let backgroundClouds = [];
 let sfxAudioCtx = null;
 let sfxUnlockBound = false;
+let bgMusic = null;
+let bgMusicUnlockBound = false;
 let useSheetCat = false;
 let useCleanSheetCat = false;
 let catRunAnimKey = 'cat_run';
@@ -1047,6 +1049,7 @@ function create() {
   }
 
   initSfx(this);
+  initBgMusic();
   setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge.`, 2600);
 }
 
@@ -2497,6 +2500,33 @@ function requestMobileFullscreen() {
       // Ignore fullscreen failures (iOS/Safari restrictions etc).
     }
   }
+}
+
+function initBgMusic() {
+  if (!bgMusic) {
+    bgMusic = new Audio('assets/audio/BGmusic.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.32;
+    bgMusic.preload = 'auto';
+  }
+  if (bgMusicUnlockBound) return;
+  bgMusicUnlockBound = true;
+
+  const unlock = () => {
+    if (!bgMusic) return;
+    bgMusic.play().then(() => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      window.removeEventListener('touchstart', unlock);
+      bgMusicUnlockBound = false;
+    }).catch(() => {
+      // Ignore and retry on next user gesture.
+    });
+  };
+
+  window.addEventListener('pointerdown', unlock, { passive: true });
+  window.addEventListener('keydown', unlock, { passive: true });
+  window.addEventListener('touchstart', unlock, { passive: true });
 }
 
 

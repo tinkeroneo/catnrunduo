@@ -30,11 +30,13 @@ const DOG_MIN_COMPONENT_HEIGHT = 60;
 const DOG_BG_DETECTION_ALPHA_OPAQUE_RATIO = 0.98;
 const DOG_BG_COLOR_DISTANCE_THRESHOLD = 55;
 const DOG_CHASE_DISTANCE = 320;
-const DOG_CHASE_SPEED_MUL = 1.45;
 const BOSS_LEVEL_INTERVAL = 10;
 const MICE_PER_EXTRA_LIFE = 53;
 const MOUSE_COLLECT_RADIUS_X = 26;
 const MOUSE_COLLECT_RADIUS_Y = 22;
+const MOUSE_COMBO_WINDOW_MS = 1900;
+const MOUSE_COMBO_MAX_STACK = 8;
+const MOUSE_COMBO_MULTIPLIERS = [1, 1.2, 1.5, 2.0];
 const ENEMY_STOMP_WINDOW_NORMAL = 18;
 const ENEMY_STOMP_WINDOW_BOSS = 24;
 const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
@@ -43,6 +45,7 @@ const CAMERA_LOOKAHEAD_LERP = 0.18;
 const TOUCH_MOVE_DEADZONE_PX = 10;
 const TOUCH_SWIPE_UP_MIN_PX = 20;
 const TOUCH_SWIPE_SIDE_MIN_PX = 12;
+const HUNTER_CHASE_SPEED_MUL = 1.62;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
@@ -189,6 +192,8 @@ let lifePickups;
 let hiddenLifeBlocks;
 let miceTotal = 0;
 let miceCollected = 0;
+let mouseComboCount = 0;
+let mouseComboExpiresAt = 0;
 let totalMiceCollected = 0;
 let nextMouseLifeMilestone = MICE_PER_EXTRA_LIFE;
 let lives = 3;
@@ -670,6 +675,8 @@ function create() {
     score = 0;
     runStartMs = this.time.now;
     totalMiceCollected = 0;
+    mouseComboCount = 0;
+    mouseComboExpiresAt = 0;
     nextMouseLifeMilestone = MICE_PER_EXTRA_LIFE;
   }
 
@@ -843,6 +850,8 @@ function create() {
   });
   miceTotal = levelConfig.mice.length;
   miceCollected = 0;
+  mouseComboCount = 0;
+  mouseComboExpiresAt = 0;
 
   enemies = this.physics.add.group({ allowGravity: true, collideWorldBounds: true });
   levelConfig.enemies.forEach((spawn) => {
@@ -861,6 +870,7 @@ function create() {
     enemy.setData('baseSpeed', enemySpeed);
     enemy.setData('dir', -1);
     enemy.setData('isChasing', false);
+    enemy.setData('enemyType', spawn.type === 'hunter' ? 'hunter' : 'patrol');
     enemy.setVelocityX(-enemySpeed);
     if (enemyRunAnimKey) enemy.anims.play(enemyRunAnimKey, true);
   });
@@ -1100,8 +1110,17 @@ function collectMouse(playerSprite, mouse) {
   mouse.disableBody(true, true);
   miceCollected += 1;
   totalMiceCollected += 1;
-  score += getThemeGameplay().mousePoints;
+  const now = sceneRef.time.now;
+  const comboActive = now <= mouseComboExpiresAt;
+  mouseComboCount = comboActive ? Math.min(mouseComboCount + 1, MOUSE_COMBO_MAX_STACK) : 1;
+  mouseComboExpiresAt = now + MOUSE_COMBO_WINDOW_MS;
+  const comboMul = getMouseComboMultiplier(mouseComboCount);
+  const mousePoints = Math.round(getThemeGameplay().mousePoints * comboMul);
+  score += mousePoints;
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  if (mouseComboCount >= 2) {
+    setStatus(`Combo x${comboMul.toFixed(1)} (+${mousePoints})`, 650);
+  }
 
   if (totalMiceCollected >= nextMouseLifeMilestone) {
     spawnMilestoneLife(spawnX, spawnY);
@@ -1118,6 +1137,13 @@ function canCollectMouse(playerSprite, mouse) {
   const dx = Math.abs(playerSprite.x - mouse.x);
   const dy = Math.abs(playerSprite.y - mouse.y);
   return dx <= MOUSE_COLLECT_RADIUS_X && dy <= MOUSE_COLLECT_RADIUS_Y;
+}
+
+function getMouseComboMultiplier(comboCount) {
+  if (comboCount >= 8) return MOUSE_COMBO_MULTIPLIERS[3];
+  if (comboCount >= 5) return MOUSE_COMBO_MULTIPLIERS[2];
+  if (comboCount >= 3) return MOUSE_COMBO_MULTIPLIERS[1];
+  return MOUSE_COMBO_MULTIPLIERS[0];
 }
 
 function spawnMilestoneLife(x, y) {
@@ -1234,6 +1260,8 @@ function hitEnemy(playerSprite, enemy) {
 function loseLife(message) {
   if (gameWon || gameOver) return;
 
+  mouseComboCount = 0;
+  mouseComboExpiresAt = 0;
   lives -= 1;
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
@@ -1259,19 +1287,20 @@ function updateEnemies() {
     const minX = enemy.getData('minX');
     const maxX = enemy.getData('maxX');
     const baseSpeed = enemy.getData('baseSpeed') ?? enemy.getData('speed');
+    const enemyType = enemy.getData('enemyType') === 'hunter' ? 'hunter' : 'patrol';
     let speed = baseSpeed;
     let dir = enemy.getData('dir');
     let isChasing = false;
 
-    if (useSheetDog && player && player.active && !gameOver && !gameWon) {
+    if (enemyType === 'hunter' && useSheetDog && player && player.active && !gameOver && !gameWon) {
       const dx = player.x - enemy.x;
       const dy = Math.abs(player.y - enemy.y);
-      const inRangeX = Math.abs(dx) <= DOG_CHASE_DISTANCE;
+      const inRangeX = Math.abs(dx) <= DOG_CHASE_DISTANCE * 1.1;
       const inRangeY = dy <= 120;
-      const insidePatrol = player.x >= minX - 48 && player.x <= maxX + 48;
+      const insidePatrol = player.x >= minX - 70 && player.x <= maxX + 70;
       if (inRangeX && inRangeY && insidePatrol) {
         isChasing = true;
-        speed = Math.round(baseSpeed * DOG_CHASE_SPEED_MUL);
+        speed = Math.round(baseSpeed * HUNTER_CHASE_SPEED_MUL);
         dir = dx >= 0 ? 1 : -1;
       }
     }
@@ -2332,7 +2361,7 @@ function getLevelConfig(level) {
       ],
       enemies: [
         { x: 640, y: WORLD_HEIGHT - 90, minX: 520, maxX: 760, speed: 75 },
-        { x: 1360, y: WORLD_HEIGHT - 90, minX: 1260, maxX: 1490, speed: 90 },
+        { x: 1360, y: WORLD_HEIGHT - 90, minX: 1260, maxX: 1490, speed: 90, type: 'hunter' },
         { x: 1860, y: WORLD_HEIGHT - 90, minX: 1760, maxX: 2000, speed: 80 },
         { x: 2290, y: 240, minX: 2140, maxX: 2430, speed: 65 },
       ],
@@ -2353,10 +2382,10 @@ function getLevelConfig(level) {
         [2450, 370], [2520, WORLD_HEIGHT - 88],
       ],
       enemies: [
-        { x: 520, y: WORLD_HEIGHT - 90, minX: 380, maxX: 720, speed: 95 },
+        { x: 520, y: WORLD_HEIGHT - 90, minX: 380, maxX: 720, speed: 95, type: 'hunter' },
         { x: 1180, y: WORLD_HEIGHT - 90, minX: 1040, maxX: 1420, speed: 110 },
         { x: 1710, y: WORLD_HEIGHT - 90, minX: 1540, maxX: 1940, speed: 105 },
-        { x: 2240, y: 370, minX: 2140, maxX: 2350, speed: 92 },
+        { x: 2240, y: 370, minX: 2140, maxX: 2350, speed: 92, type: 'hunter' },
       ],
       catnips: [[880, 390], [1600, 320], [2320, 260]],
       hiddenLives: [[2050, 205]],
@@ -2380,7 +2409,7 @@ function getTestLevelConfig() {
       [2520, WORLD_HEIGHT - 88],
     ],
     enemies: [
-      { x: 720, y: WORLD_HEIGHT - 90, minX: 560, maxX: 900, speed: 95 },
+      { x: 720, y: WORLD_HEIGHT - 90, minX: 560, maxX: 900, speed: 95, type: 'hunter' },
     ],
     catnips: [],
     hiddenLives: [],
@@ -2441,7 +2470,8 @@ function getGeneratedLevelConfig(level) {
     const minX = clampValue(center - patrol, 180, WORLD_WIDTH - 220);
     const maxX = clampValue(center + patrol, 220, WORLD_WIDTH - 120);
     const speed = Math.round(80 + progress * 65 + rand01(seed + 29, i) * 22);
-    enemies.push({ x: center, y: WORLD_HEIGHT - 90, minX, maxX, speed });
+    const type = (i % 3 === 1 || rand01(seed + 911, i) > 0.86) ? 'hunter' : 'patrol';
+    enemies.push({ x: center, y: WORLD_HEIGHT - 90, minX, maxX, speed, type });
   }
 
   const catnips = [];

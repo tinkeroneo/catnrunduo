@@ -90,6 +90,14 @@ const ANIM_CONFIG = {
   dogRun: { fps: 10, repeat: -1 },
   dogChase: { fps: 12, repeat: -1 },
 };
+const MOBILE_BUTTON_SIZE_PX = 46;
+const MOBILE_BUTTON_ICONS = {
+  restart: '↻',
+  pause: '⏸',
+  play: '▶',
+  touchEasy: '◎',
+  touchPrecise: '◉',
+};
 let assetManifest = DEFAULT_ASSET_MANIFEST;
 const THEMES = [
   {
@@ -981,7 +989,7 @@ function create() {
   lifeText.setVisible(false);
 
   timerText = this.add
-    .text(16, 80, `Zeit ${formatMs(Math.max(0, Math.floor(this.time.now - runStartMs)))}  Best ${bestTimeMs == null ? '-' : formatMs(bestTimeMs)}  Boost -  Boss -`, {
+    .text(16, 80, 'Boost -  Boss -', {
       fontFamily: 'Segoe UI, sans-serif',
       fontSize: '16px',
       color: '#1f2a44',
@@ -1055,53 +1063,21 @@ function create() {
   touchProfileMode = resolveInitialTouchProfile();
   if (isMobileUi) {
     touchControls.tuning = resolveTouchTuning(this);
-    restartTouchButton = this.add
-      .text(940, 14, 'Restart', {
-        fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '20px',
-        color: '#ffffff',
-        backgroundColor: '#1f2a44cc',
-        padding: { x: 12, y: 8 },
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(40)
-      .setInteractive({ useHandCursor: true });
-    restartTouchButton.on('pointerdown', () => {
+    restartTouchButton = createMobileRoundButton(this, MOBILE_BUTTON_ICONS.restart, () => {
       restartRun();
     });
-    pauseTouchButton = this.add
-      .text(940, 50, 'Pause', {
-        fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '18px',
-        color: '#ffffff',
-        backgroundColor: '#1f2a44cc',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(40)
-      .setInteractive({ useHandCursor: true });
-    pauseTouchButton.on('pointerdown', () => {
+    pauseTouchButton = createMobileRoundButton(this, MOBILE_BUTTON_ICONS.pause, () => {
       togglePause();
     });
-    touchProfileButton = this.add
-      .text(940, 86, `Touch: ${touchProfileMode}`, {
-        fontFamily: 'Segoe UI, sans-serif',
-        fontSize: '18px',
-        color: '#ffffff',
-        backgroundColor: '#1f2a44cc',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(40)
-      .setInteractive({ useHandCursor: true });
-    touchProfileButton.on('pointerdown', () => {
+    touchProfileButton = createMobileRoundButton(
+      this,
+      touchProfileMode === 'precise' ? MOBILE_BUTTON_ICONS.touchPrecise : MOBILE_BUTTON_ICONS.touchEasy,
+      () => {
       const next = touchProfileMode === 'easy' ? 'precise' : 'easy';
       setTouchProfileMode(next, this);
       setStatus(`Touch-Profil: ${touchProfileMode}`, 1200);
-    });
+      }
+    );
     layoutMobileActionButtons(this);
   } else {
     restartTouchButton = null;
@@ -1987,7 +1963,6 @@ function update() {
   const isBoosted = sceneRef.time.now < boostUntilMs;
   const boostLabel = isBoosted ? `${formatMs(Math.max(0, Math.floor(boostUntilMs - sceneRef.time.now))).slice(3)} aktiv` : '-';
   const bossLabel = boss ? (boss.active ? `${boss.getData('hp')}/${boss.getData('maxHp')}` : 'besiegt') : '-';
-  const bestLabel = bestTimeMs == null ? '-' : formatMs(bestTimeMs);
   if (isBoosted) {
     const leftMs = Math.max(0, Math.floor(boostUntilMs - sceneRef.time.now));
     boostText.setText(`Boost: ${formatMs(leftMs).slice(3)} aktiv`);
@@ -1996,8 +1971,7 @@ function update() {
   }
 
   if (!gameWon && !gameOver) {
-    const elapsedMs = Math.max(0, Math.floor(sceneRef.time.now - runStartMs));
-    timerText.setText(`Zeit ${formatMs(elapsedMs)}  Best ${bestLabel}  Boost ${boostLabel}  Boss ${bossLabel}`);
+    timerText.setText(`Boost ${boostLabel}  Boss ${bossLabel}`);
   }
 
   if (hitCooldown > 0) {
@@ -2745,7 +2719,7 @@ function togglePause(forceState = null, silent = false) {
   if (nextState === gamePaused) return;
   gamePaused = nextState;
   pauseText?.setVisible(gamePaused);
-  pauseTouchButton?.setText(gamePaused ? 'Weiter' : 'Pause');
+  setMobileButtonIcon(pauseTouchButton, gamePaused ? MOBILE_BUTTON_ICONS.play : MOBILE_BUTTON_ICONS.pause);
   if (gamePaused) {
     sceneRef.physics.world.pause();
     if (bgMusic && !bgMusic.paused) bgMusic.pause();
@@ -2763,6 +2737,45 @@ function togglePause(forceState = null, silent = false) {
 
 function isMobileRuntime() {
   return window.matchMedia?.('(max-width: 900px)').matches ?? false;
+}
+
+function createMobileRoundButton(scene, icon, onPress) {
+  const radius = Math.round(MOBILE_BUTTON_SIZE_PX * 0.5);
+  const background = scene.add
+    .circle(0, 0, radius, 0x1f2a44, 0.84)
+    .setStrokeStyle(2, 0xffffff, 0.85)
+    .setScrollFactor(0)
+    .setDepth(40)
+    .setInteractive({ useHandCursor: true });
+  const label = scene.add
+    .text(0, 0, icon, {
+      fontFamily: 'Segoe UI Symbol, Segoe UI, sans-serif',
+      fontSize: '24px',
+      color: '#ffffff',
+    })
+    .setOrigin(0.5)
+    .setScrollFactor(0)
+    .setDepth(41);
+
+  background.on('pointerdown', onPress);
+  return {
+    setPosition(x, y) {
+      background.setPosition(x, y);
+      label.setPosition(x, y);
+    },
+    setIcon(nextIcon) {
+      label.setText(nextIcon);
+    },
+    destroy() {
+      label.destroy();
+      background.destroy();
+    },
+  };
+}
+
+function setMobileButtonIcon(button, icon) {
+  if (!button || typeof button.setIcon !== 'function') return;
+  button.setIcon(icon);
 }
 
 function resolveTouchTuning(scene) {
@@ -2793,7 +2806,10 @@ function resolveInitialTouchProfile() {
 
 function setTouchProfileMode(mode, scene) {
   touchProfileMode = mode === 'precise' ? 'precise' : 'easy';
-  if (touchProfileButton) touchProfileButton.setText(`Touch: ${touchProfileMode}`);
+  setMobileButtonIcon(
+    touchProfileButton,
+    touchProfileMode === 'precise' ? MOBILE_BUTTON_ICONS.touchPrecise : MOBILE_BUTTON_ICONS.touchEasy
+  );
   try {
     window.localStorage.setItem(TOUCH_PROFILE_STORAGE_KEY, touchProfileMode);
   } catch {
@@ -2812,24 +2828,16 @@ function layoutMobileActionButtons(scene) {
   const isMobile = isMobileRuntime();
   if (!isMobile) return;
   const width = Math.round(scene?.scale?.width || window.innerWidth || 960);
-  const rightX = width - 12;
+  const size = MOBILE_BUTTON_SIZE_PX;
+  const rightX = width - 12 - Math.round(size * 0.5);
   const top = getMobileTopInsetPx();
   const gap = 10;
-
-  if (restartTouchButton) {
-    restartTouchButton.setPosition(rightX, top);
-  }
-
-  if (pauseTouchButton) {
-    const y = top + (restartTouchButton ? restartTouchButton.height + gap : 0);
-    pauseTouchButton.setPosition(rightX, y);
-  }
-
-  if (touchProfileButton) {
-    const anchor = pauseTouchButton || restartTouchButton;
-    const y = top + (anchor ? anchor.y + anchor.height + gap - top : 0);
-    touchProfileButton.setPosition(rightX, y);
-  }
+  const y = top + Math.round(size * 0.5);
+  const buttonsRightToLeft = [touchProfileButton, pauseTouchButton, restartTouchButton].filter(Boolean);
+  buttonsRightToLeft.forEach((btn, idx) => {
+    const x = rightX - idx * (size + gap);
+    btn.setPosition(x, y);
+  });
 }
 
 function syncAnimationTiming() {

@@ -108,6 +108,11 @@ const LEVEL_MODIFIERS = [
   { key: 'wind_left', label: '<- Wind', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: -24 },
   { key: 'fast_patrol', label: 'Fast Patrol', gravityMul: 1, runMul: 1, enemySpeedMul: 1.16, windX: 0 },
 ];
+const LEVEL_CHALLENGES = [
+  { key: 'no_hit', label: 'Kein Treffer' },
+  { key: 'combo5', label: 'Combo x1.5 (5er)' },
+  { key: 'stomps2', label: '2 Gegner stompen' },
+];
 const MOBILE_BUTTON_SIZE_PX = 46;
 const MOBILE_BUTTON_ICONS = {
   restart: '↻',
@@ -220,6 +225,10 @@ let bestTimeMs = null;
 let currentLevel = 1;
 let currentTheme = THEMES[0];
 let currentLevelModifier = LEVEL_MODIFIERS[0];
+let currentLevelChallenge = null;
+let levelLivesLost = 0;
+let levelMaxCombo = 0;
+let levelStomps = 0;
 let respawnX = 100;
 let respawnY = WORLD_HEIGHT - 120;
 let scoreText;
@@ -715,6 +724,10 @@ function create() {
   const theme = getThemeForLevel(currentLevel);
   currentTheme = theme;
   currentLevelModifier = getLevelModifier(currentLevel);
+  currentLevelChallenge = getLevelChallenge(currentLevel);
+  levelLivesLost = 0;
+  levelMaxCombo = 0;
+  levelStomps = 0;
   this.physics.world.gravity.y = Math.round(BASE_GRAVITY_Y * (currentLevelModifier.gravityMul ?? 1));
   createParallaxBackground(this, theme);
   const groundKey = ensureGroundTexture(this, theme);
@@ -1123,7 +1136,10 @@ function create() {
   if (FORCE_TEST_LEVEL) {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
   } else {
-    setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge. Mod: ${currentLevelModifier.label}`, 3200);
+    setStatus(
+      `Level ${currentLevel}: Mod ${currentLevelModifier.label} | Challenge: ${currentLevelChallenge.label}`,
+      3400
+    );
   }
 }
 
@@ -1140,6 +1156,7 @@ function collectMouse(playerSprite, mouse) {
   const comboMul = getMouseComboMultiplier(mouseComboCount);
   const mousePoints = Math.round(getThemeGameplay().mousePoints * comboMul);
   score += mousePoints;
+  if (mouseComboCount > levelMaxCombo) levelMaxCombo = mouseComboCount;
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
   if (mouseComboCount >= 2) {
     setStatus(`Combo x${comboMul.toFixed(1)} (+${mousePoints})`, 650);
@@ -1200,12 +1217,17 @@ function reachFlag() {
   }
 
   const levelClearBonus = 500 * currentLevel;
-  score += levelClearBonus;
+  const challengeResult = evaluateLevelChallenge();
+  const challengeBonus = challengeResult.completed ? challengeResult.bonus : 0;
+  score += levelClearBonus + challengeBonus;
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
 
   if (currentLevel < MAX_LEVEL) {
     gameWon = true;
-    setStatus(`Level ${currentLevel} geschafft! Weiter zu Level ${currentLevel + 1}...`, 0);
+    const challengePart = challengeResult.completed
+      ? ` Challenge geschafft (+${challengeBonus})`
+      : ` Challenge verpasst`;
+    setStatus(`Level ${currentLevel} geschafft!${challengePart} Weiter zu Level ${currentLevel + 1}...`, 0);
     player.setVelocity(0, 0);
     player.anims.stop();
     setCatIdleTexture(player);
@@ -1253,6 +1275,7 @@ function hitEnemy(playerSprite, enemy) {
   const fromAbove = fromAboveByTop || fromAboveByCenter || nearTopCoyote;
 
   if ((isDescending || nearTopCoyote) && fromAbove) {
+    levelStomps += 1;
     if (isBoss) {
       const nextHp = Math.max(0, enemy.getData('hp') - 1);
       enemy.setData('hp', nextHp);
@@ -1295,6 +1318,7 @@ function loseLife(message) {
 
   mouseComboCount = 0;
   mouseComboExpiresAt = 0;
+  levelLivesLost += 1;
   lives -= 1;
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
@@ -2452,6 +2476,34 @@ function getLevelModifier(level) {
   if (level <= 1) return LEVEL_MODIFIERS[0];
   const idx = 1 + ((level - 2) % (LEVEL_MODIFIERS.length - 1));
   return LEVEL_MODIFIERS[idx];
+}
+
+function getLevelChallenge(level) {
+  if (level <= 1) {
+    return { key: 'intro', label: 'Warmup', bonus: 0 };
+  }
+  const def = LEVEL_CHALLENGES[(level - 2) % LEVEL_CHALLENGES.length];
+  return {
+    key: def.key,
+    label: def.label,
+    bonus: 220 + level * 18,
+  };
+}
+
+function evaluateLevelChallenge() {
+  if (!currentLevelChallenge || currentLevelChallenge.key === 'intro') {
+    return { completed: false, bonus: 0, key: 'intro' };
+  }
+  if (currentLevelChallenge.key === 'no_hit') {
+    return { completed: levelLivesLost === 0, bonus: currentLevelChallenge.bonus, key: 'no_hit' };
+  }
+  if (currentLevelChallenge.key === 'combo5') {
+    return { completed: levelMaxCombo >= 5, bonus: currentLevelChallenge.bonus, key: 'combo5' };
+  }
+  if (currentLevelChallenge.key === 'stomps2') {
+    return { completed: levelStomps >= 2, bonus: currentLevelChallenge.bonus, key: 'stomps2' };
+  }
+  return { completed: false, bonus: 0, key: currentLevelChallenge.key };
 }
 
 function getTestLevelConfig() {

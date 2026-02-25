@@ -20,8 +20,11 @@
     }
   },
   "audio": {
-    "bgm": {
+    "bgmPrimary": {
       "path": "assets/audio/BGmusic.mp3"
+    },
+    "bgmAlt": {
+      "path": "assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3"
     }
   }
 }

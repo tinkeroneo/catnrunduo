@@ -52,6 +52,7 @@ const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new'];
 const URL_QUERY = new URLSearchParams(window.location.search);
 const DEBUG_HITBOXES_ENABLED = URL_QUERY.get('debug') === '1';
 const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
+const BGM_QUERY_MODE = (URL_QUERY.get('bgm') || 'primary').toLowerCase();
 const COLLIDER_PROFILES = {
   playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
   playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
@@ -78,7 +79,8 @@ const DEFAULT_ASSET_MANIFEST = {
     chaseSheet: { path: 'assets/dog_chase12_3x4.png' },
   },
   audio: {
-    bgm: { path: 'assets/audio/BGmusic.mp3' },
+    bgmPrimary: { path: 'assets/audio/BGmusic.mp3' },
+    bgmAlt: { path: 'assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3' },
   },
 };
 const ANIM_CONFIG = {
@@ -2656,7 +2658,7 @@ function requestMobileFullscreen() {
 
 function initBgMusic() {
   if (!bgMusic) {
-    bgMusic = new Audio(assetManifest.audio.bgm.path);
+    bgMusic = new Audio(getSelectedBgmPath());
     bgMusic.loop = true;
     bgMusic.volume = 0.32;
     bgMusic.preload = 'auto';
@@ -2679,6 +2681,13 @@ function initBgMusic() {
   window.addEventListener('pointerdown', unlock, { passive: true });
   window.addEventListener('keydown', unlock, { passive: true });
   window.addEventListener('touchstart', unlock, { passive: true });
+}
+
+function getSelectedBgmPath() {
+  if (BGM_QUERY_MODE === 'alt') {
+    return assetManifest.audio.bgmAlt.path;
+  }
+  return assetManifest.audio.bgmPrimary.path;
 }
 
 
@@ -2855,8 +2864,11 @@ function mergeAssetManifest(raw) {
       },
     },
     audio: {
-      bgm: {
-        path: raw?.audio?.bgm?.path || DEFAULT_ASSET_MANIFEST.audio.bgm.path,
+      bgmPrimary: {
+        path: raw?.audio?.bgmPrimary?.path || raw?.audio?.bgm?.path || DEFAULT_ASSET_MANIFEST.audio.bgmPrimary.path,
+      },
+      bgmAlt: {
+        path: raw?.audio?.bgmAlt?.path || DEFAULT_ASSET_MANIFEST.audio.bgmAlt.path,
       },
     },
   };

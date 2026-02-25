@@ -101,12 +101,12 @@ const ANIM_CONFIG = {
   dogChase: { fps: 12, repeat: -1 },
 };
 const LEVEL_MODIFIERS = [
-  { key: 'normal', label: 'Normal', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 0 },
-  { key: 'low_gravity', label: 'Low Gravity', gravityMul: 0.86, runMul: 1, enemySpeedMul: 1, windX: 0 },
-  { key: 'sticky', label: 'Sticky Ground', gravityMul: 1, runMul: 0.84, enemySpeedMul: 1, windX: 0 },
-  { key: 'wind_right', label: 'Wind ->', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 24 },
-  { key: 'wind_left', label: '<- Wind', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: -24 },
-  { key: 'fast_patrol', label: 'Fast Patrol', gravityMul: 1, runMul: 1, enemySpeedMul: 1.16, windX: 0 },
+  { key: 'normal', label: 'Normal', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.0 },
+  { key: 'low_gravity', label: 'Low Gravity', gravityMul: 0.86, runMul: 1, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.04 },
+  { key: 'sticky', label: 'Sticky Ground', gravityMul: 1, runMul: 0.84, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.06 },
+  { key: 'wind_right', label: 'Wind ->', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 24, challengeBonusMul: 1.1 },
+  { key: 'wind_left', label: '<- Wind', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: -24, challengeBonusMul: 1.1 },
+  { key: 'fast_patrol', label: 'Fast Patrol', gravityMul: 1, runMul: 1, enemySpeedMul: 1.16, windX: 0, challengeBonusMul: 1.14 },
 ];
 const LEVEL_CHALLENGES = [
   { key: 'no_hit', label: 'Kein Treffer' },
@@ -229,6 +229,7 @@ let currentLevelChallenge = null;
 let levelLivesLost = 0;
 let levelMaxCombo = 0;
 let levelStomps = 0;
+let challengeSuccessStreak = 0;
 let respawnX = 100;
 let respawnY = WORLD_HEIGHT - 120;
 let scoreText;
@@ -703,6 +704,7 @@ function create() {
     mouseComboCount = 0;
     mouseComboExpiresAt = 0;
     nextMouseLifeMilestone = MICE_PER_EXTRA_LIFE;
+    challengeSuccessStreak = 0;
   }
 
   respawnX = 100;
@@ -1218,14 +1220,21 @@ function reachFlag() {
 
   const levelClearBonus = 500 * currentLevel;
   const challengeResult = evaluateLevelChallenge();
-  const challengeBonus = challengeResult.completed ? challengeResult.bonus : 0;
+  const challengeBonus = challengeResult.completed
+    ? calculateChallengeBonus(challengeResult.bonus, challengeSuccessStreak, currentLevelModifier)
+    : 0;
+  if (challengeResult.completed) {
+    challengeSuccessStreak += 1;
+  } else {
+    challengeSuccessStreak = 0;
+  }
   score += levelClearBonus + challengeBonus;
   scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
 
   if (currentLevel < MAX_LEVEL) {
     gameWon = true;
     const challengePart = challengeResult.completed
-      ? ` Challenge geschafft (+${challengeBonus})`
+      ? ` Challenge geschafft (+${challengeBonus}) Streak ${challengeSuccessStreak}`
       : ` Challenge verpasst`;
     setStatus(`Level ${currentLevel} geschafft!${challengePart} Weiter zu Level ${currentLevel + 1}...`, 0);
     player.setVelocity(0, 0);
@@ -2504,6 +2513,12 @@ function evaluateLevelChallenge() {
     return { completed: levelStomps >= 2, bonus: currentLevelChallenge.bonus, key: 'stomps2' };
   }
   return { completed: false, bonus: 0, key: currentLevelChallenge.key };
+}
+
+function calculateChallengeBonus(baseBonus, currentStreak, modifier) {
+  const modMul = modifier?.challengeBonusMul ?? 1;
+  const streakMul = 1 + Math.min(3, Math.max(0, currentStreak)) * 0.1;
+  return Math.round(baseBonus * modMul * streakMul);
 }
 
 function getTestLevelConfig() {

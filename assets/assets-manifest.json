@@ -20,11 +20,28 @@
     }
   },
   "audio": {
-    "bgmPrimary": {
-      "path": "assets/audio/BGmusic.mp3"
+    "layers": {
+      "base_atmosphere": {
+        "path": "",
+        "volume": 0.18,
+        "loop": true,
+        "enabled": false
+      },
+      "bgm_primary": {
+        "path": "assets/audio/BGmusic.mp3",
+        "volume": 0.32,
+        "loop": true,
+        "enabled": true,
+        "mode": "primary"
+      },
+      "bgm_alt": {
+        "path": "assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3",
+        "volume": 0.28,
+        "loop": true,
+        "enabled": true,
+        "mode": "alt"
+      }
     },
-    "bgmAlt": {
-      "path": "assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3"
-    }
+    "note": "Set base_atmosphere.path to your ambient loop file and enable it."
   }
 }

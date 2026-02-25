@@ -89,8 +89,28 @@ const DEFAULT_ASSET_MANIFEST = {
     chaseSheet: { path: 'assets/dog_chase12_3x4.png' },
   },
   audio: {
-    bgmPrimary: { path: 'assets/audio/BGmusic.mp3' },
-    bgmAlt: { path: 'assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3' },
+    layers: {
+      base_atmosphere: {
+        path: '',
+        volume: 0.18,
+        loop: true,
+        enabled: false,
+      },
+      bgm_primary: {
+        path: 'assets/audio/BGmusic.mp3',
+        volume: 0.32,
+        loop: true,
+        enabled: true,
+        mode: 'primary',
+      },
+      bgm_alt: {
+        path: 'assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3',
+        volume: 0.28,
+        loop: true,
+        enabled: true,
+        mode: 'alt',
+      },
+    },
   },
 };
 const ANIM_CONFIG = {
@@ -261,8 +281,8 @@ let parallaxLayers = [];
 let backgroundClouds = [];
 let sfxAudioCtx = null;
 let sfxUnlockBound = false;
-let bgMusic = null;
-let bgMusicUnlockBound = false;
+let audioLayerPlayers = [];
+let audioLayersUnlockBound = false;
 let useSheetCat = false;
 let useCleanSheetCat = false;
 let catRunAnimKey = 'cat_run';
@@ -1146,7 +1166,7 @@ function create() {
   }
 
   initSfx(this);
-  initBgMusic();
+  initAudioLayers();
   if (FORCE_TEST_LEVEL) {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
   } else {
@@ -2806,25 +2826,39 @@ function requestMobileFullscreen() {
   }
 }
 
-function initBgMusic() {
-  if (!bgMusic) {
-    bgMusic = new Audio(getSelectedBgmPath());
-    bgMusic.loop = true;
-    bgMusic.volume = 0.32;
-    bgMusic.preload = 'auto';
-  }
-  if (bgMusicUnlockBound) return;
-  bgMusicUnlockBound = true;
+function initAudioLayers() {
+  audioLayerPlayers.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {
+      // Ignore playback teardown issues.
+    }
+  });
+  audioLayerPlayers = [];
+
+  const layerEntries = getConfiguredAudioLayers();
+  layerEntries.forEach(([name, layer]) => {
+    if (!layer || !layer.path || !shouldEnableAudioLayer(layer)) return;
+    const audio = new Audio(layer.path);
+    audio.loop = layer.loop !== false;
+    audio.volume = clampValue(Number(layer.volume ?? 0.25), 0, 1);
+    audio.preload = 'auto';
+    audio.dataset.layerName = name;
+    audioLayerPlayers.push(audio);
+  });
+
+  if (audioLayersUnlockBound) return;
+  audioLayersUnlockBound = true;
 
   const unlock = () => {
-    if (!bgMusic) return;
-    bgMusic.play().then(() => {
+    if (audioLayerPlayers.length === 0) return;
+    const playPromises = audioLayerPlayers.map((audio) => audio.play().catch(() => null));
+    Promise.all(playPromises).then(() => {
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
       window.removeEventListener('touchstart', unlock);
-      bgMusicUnlockBound = false;
-    }).catch(() => {
-      // Ignore and retry on next user gesture.
+      audioLayersUnlockBound = false;
     });
   };
 
@@ -2833,11 +2867,34 @@ function initBgMusic() {
   window.addEventListener('touchstart', unlock, { passive: true });
 }
 
-function getSelectedBgmPath() {
-  if (BGM_QUERY_MODE === 'alt') {
-    return assetManifest.audio.bgmAlt.path;
+function getConfiguredAudioLayers() {
+  const layers = assetManifest?.audio?.layers;
+  if (layers && typeof layers === 'object') {
+    return Object.entries(layers);
   }
-  return assetManifest.audio.bgmPrimary.path;
+  return [];
+}
+
+function shouldEnableAudioLayer(layer) {
+  if (!layer || layer.enabled === false) return false;
+  const mode = String(layer.mode || '').toLowerCase();
+  if (!mode) return true;
+  return mode === BGM_QUERY_MODE;
+}
+
+function pauseAudioLayers() {
+  audioLayerPlayers.forEach((audio) => {
+    if (!audio.paused) audio.pause();
+  });
+}
+
+function resumeAudioLayers() {
+  audioLayerPlayers.forEach((audio) => {
+    if (!audio.paused) return;
+    audio.play().catch(() => {
+      // Audio may still be gesture-blocked; ignore.
+    });
+  });
 }
 
 
@@ -2898,16 +2955,12 @@ function togglePause(forceState = null, silent = false) {
   setMobileButtonIcon(pauseTouchButton, gamePaused ? MOBILE_BUTTON_ICONS.play : MOBILE_BUTTON_ICONS.pause);
   if (gamePaused) {
     sceneRef.physics.world.pause();
-    if (bgMusic && !bgMusic.paused) bgMusic.pause();
+    pauseAudioLayers();
     if (!silent) setStatus('Spiel pausiert.', 0);
     return;
   }
   sceneRef.physics.world.resume();
-  if (bgMusic && bgMusic.paused) {
-    bgMusic.play().catch(() => {
-      // Audio may still be gesture-blocked; ignore.
-    });
-  }
+  resumeAudioLayers();
   if (!silent) setStatus('Weiter gehts.', 900);
 }
 
@@ -3044,6 +3097,27 @@ function syncAnimationTiming() {
 }
 
 function mergeAssetManifest(raw) {
+  const defaultLayers = DEFAULT_ASSET_MANIFEST.audio.layers;
+  const rawLayers = raw?.audio?.layers ?? {};
+  const legacyPrimary = raw?.audio?.bgmPrimary?.path || raw?.audio?.bgm?.path || '';
+  const legacyAlt = raw?.audio?.bgmAlt?.path || '';
+  const mergedLayers = {
+    base_atmosphere: {
+      ...defaultLayers.base_atmosphere,
+      ...(rawLayers.base_atmosphere || {}),
+    },
+    bgm_primary: {
+      ...defaultLayers.bgm_primary,
+      ...(rawLayers.bgm_primary || {}),
+    },
+    bgm_alt: {
+      ...defaultLayers.bgm_alt,
+      ...(rawLayers.bgm_alt || {}),
+    },
+  };
+  if (legacyPrimary) mergedLayers.bgm_primary.path = legacyPrimary;
+  if (legacyAlt) mergedLayers.bgm_alt.path = legacyAlt;
+
   return {
     cat: {
       spritesheet: {
@@ -3066,12 +3140,7 @@ function mergeAssetManifest(raw) {
       },
     },
     audio: {
-      bgmPrimary: {
-        path: raw?.audio?.bgmPrimary?.path || raw?.audio?.bgm?.path || DEFAULT_ASSET_MANIFEST.audio.bgmPrimary.path,
-      },
-      bgmAlt: {
-        path: raw?.audio?.bgmAlt?.path || DEFAULT_ASSET_MANIFEST.audio.bgmAlt.path,
-      },
+      layers: mergedLayers,
     },
   };
 }

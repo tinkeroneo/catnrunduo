@@ -49,6 +49,19 @@ const MOBILE_PARALLAX_DENSITY = 0.65;
 const TOUCH_PROFILE_STORAGE_KEY = 'catPlatformer.touchProfile';
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
+const URL_QUERY = new URLSearchParams(window.location.search);
+const DEBUG_HITBOXES_ENABLED = URL_QUERY.get('debug') === '1';
+const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
+const COLLIDER_PROFILES = {
+  playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
+  playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
+  enemySheet: { type: 'fixed', width: 18, height: 12, offsetX: 60, offsetY: 298 },
+  enemyFallback: { type: 'ratio', width: 0.75, height: 0.9, offsetX: 0.13, offsetY: 0.06 },
+  bossSheet: { type: 'fixed', width: 26, height: 16, offsetX: 9, offsetY: 24 },
+  bossFallback: { type: 'ratio', width: 0.78, height: 0.9, offsetX: 0.11, offsetY: 0.05 },
+  mouseSheet: { type: 'fixed', width: 16, height: 10, offsetX: 7, offsetY: 20 },
+  mouseFallback: { type: 'ratio', width: 0.8, height: 0.65, offsetX: 0.1, offsetY: 0.25 },
+};
 const THEMES = [
   {
     key: 'forest',
@@ -163,6 +176,7 @@ let statusClearAt = 0;
 let statusFadeStartAt = 0;
 let restartKey;
 let pauseKey;
+let debugKey;
 let pauseText;
 let restartTouchButton;
 let pauseTouchButton;
@@ -189,6 +203,7 @@ let mobileViewportBound = false;
 let mobileViewportHandler = null;
 let cameraLookAheadX = 0;
 let touchProfileMode = 'easy';
+let debugHitboxesActive = false;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -782,13 +797,9 @@ function create() {
   player.setCollideWorldBounds(true);
   player.setBounce(0.02);
   if (useSheetCat) {
-    // Fixed pixel body to avoid scale-proportional drift with cleaned sheet frames.
-    player.body.setSize(100, 22);
-    // Align body bottom with paw line so sprite no longer appears to sink into ground.
-    player.body.setOffset(30, 192);
+    applyColliderProfile(player, COLLIDER_PROFILES.playerSheet);
   } else {
-    player.body.setSize(player.displayWidth * 0.7, player.displayHeight * 0.9);
-    player.body.setOffset(player.displayWidth * 0.15, player.displayHeight * 0.08);
+    applyColliderProfile(player, COLLIDER_PROFILES.playerFallback);
   }
 
   if (useSheetCat && !useCleanSheetCat && !this.anims.exists('cat_run_sheet')) {
@@ -814,7 +825,9 @@ function create() {
     const mouse = mice.create(x, y, mouseTextureKey);
     if (useSheetMouse) {
       mouse.setScale(0.12);
-      mouse.refreshBody();
+      applyColliderProfile(mouse, COLLIDER_PROFILES.mouseSheet, true);
+    } else {
+      applyColliderProfile(mouse, COLLIDER_PROFILES.mouseFallback, true);
     }
   });
   miceTotal = levelConfig.mice.length;
@@ -827,11 +840,9 @@ function create() {
     if (useSheetDog) enemy.setScale(DOG_SHEET_SCALE);
     if (useSheetDog) enemy.setFrame(0);
     if (useSheetDog) {
-      enemy.body.setSize(18, 12);
-      enemy.body.setOffset(60, 298);
+      applyColliderProfile(enemy, COLLIDER_PROFILES.enemySheet);
     } else {
-      enemy.body.setSize(enemy.displayWidth * 0.75, enemy.displayHeight * 0.9);
-      enemy.body.setOffset(enemy.displayWidth * 0.13, enemy.displayHeight * 0.06);
+      applyColliderProfile(enemy, COLLIDER_PROFILES.enemyFallback);
     }
     enemy.setData('minX', spawn.minX);
     enemy.setData('maxX', spawn.maxX);
@@ -848,11 +859,9 @@ function create() {
     if (useSheetDog) boss.setScale(DOG_BOSS_SCALE);
     if (useSheetDog) boss.setFrame(0);
     if (useSheetDog) {
-      boss.body.setSize(26, 16);
-      boss.body.setOffset(9, 24);
+      applyColliderProfile(boss, COLLIDER_PROFILES.bossSheet);
     } else {
-      boss.body.setSize(boss.displayWidth * 0.78, boss.displayHeight * 0.9);
-      boss.body.setOffset(boss.displayWidth * 0.11, boss.displayHeight * 0.05);
+      applyColliderProfile(boss, COLLIDER_PROFILES.bossFallback);
     }
     boss.setData('isBoss', true);
     boss.setData('hp', levelConfig.boss.hp);
@@ -927,9 +936,11 @@ function create() {
   wasd = this.input.keyboard.addKeys('W,A,D');
   restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
   pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
+  debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F2);
   setupTouchControls(this);
   bindMobileViewportSync(this);
   syncMobileViewport(this);
+  setArcadeDebug(this, DEBUG_HITBOXES_ENABLED);
 
   levelText = this.add
     .text(16, 40, `Level: ${currentLevel}/${MAX_LEVEL}`, {
@@ -1097,7 +1108,11 @@ function create() {
 
   initSfx(this);
   initBgMusic();
-  setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge.`, 2600);
+  if (FORCE_TEST_LEVEL) {
+    setStatus('Test-Level aktiv (?testlevel=1).', 1800);
+  } else {
+    setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge.`, 2600);
+  }
 }
 
 function collectMouse(playerSprite, mouse) {
@@ -1915,6 +1930,11 @@ function carryPlayerOnMovingPlatforms() {
 }
 
 function update() {
+  if (Phaser.Input.Keyboard.JustDown(debugKey)) {
+    setArcadeDebug(sceneRef, !debugHitboxesActive);
+    setStatus(`Hitbox-Overlay: ${debugHitboxesActive ? 'AN' : 'AUS'}`, 900);
+  }
+
   if (Phaser.Input.Keyboard.JustDown(pauseKey) && !gameWon && !gameOver) {
     togglePause();
   }
@@ -2300,6 +2320,10 @@ function getVerticalTravelBounds(baseY, range) {
 }
 
 function getLevelConfig(level) {
+  if (FORCE_TEST_LEVEL) {
+    return getTestLevelConfig();
+  }
+
   if (level === 1) {
     return {
       platforms: [
@@ -2344,6 +2368,27 @@ function getLevelConfig(level) {
   }
 
   return getGeneratedLevelConfig(level);
+}
+
+function getTestLevelConfig() {
+  return {
+    platforms: [
+      [520, 470],
+      [980, 360],
+      [1500, 430],
+      [2020, 310],
+    ],
+    mice: [
+      [220, WORLD_HEIGHT - 88],
+      [980, 320],
+      [2520, WORLD_HEIGHT - 88],
+    ],
+    enemies: [
+      { x: 720, y: WORLD_HEIGHT - 90, minX: 560, maxX: 900, speed: 95 },
+    ],
+    catnips: [],
+    hiddenLives: [],
+  };
 }
 
 function getGeneratedLevelConfig(level) {
@@ -2446,6 +2491,38 @@ function rand01(seed, idx) {
 
 function clampValue(v, min, max) {
   return Math.max(min, Math.min(max, v));
+}
+
+function applyColliderProfile(sprite, profile, refreshStaticBody = false) {
+  if (!sprite?.body || !profile) return;
+  if (profile.type === 'fixed') {
+    sprite.body.setSize(profile.width, profile.height);
+    sprite.body.setOffset(profile.offsetX, profile.offsetY);
+  } else {
+    const width = Math.max(4, Math.round(sprite.displayWidth * profile.width));
+    const height = Math.max(4, Math.round(sprite.displayHeight * profile.height));
+    const offsetX = Math.round(sprite.displayWidth * profile.offsetX);
+    const offsetY = Math.round(sprite.displayHeight * profile.offsetY);
+    sprite.body.setSize(width, height);
+    sprite.body.setOffset(offsetX, offsetY);
+  }
+  if (refreshStaticBody && typeof sprite.refreshBody === 'function') {
+    sprite.refreshBody();
+  }
+}
+
+function setArcadeDebug(scene, enabled) {
+  if (!scene?.physics?.world) return;
+  const world = scene.physics.world;
+  if (enabled && !world.debugGraphic && typeof world.createDebugGraphic === 'function') {
+    world.createDebugGraphic();
+  }
+  world.drawDebug = !!enabled;
+  if (world.debugGraphic) {
+    world.debugGraphic.setVisible(!!enabled);
+    if (!enabled) world.debugGraphic.clear();
+  }
+  debugHitboxesActive = !!enabled;
 }
 
 function setupTouchControls(scene) {
@@ -2663,7 +2740,7 @@ function resolveTouchTuning(scene) {
 }
 
 function resolveInitialTouchProfile() {
-  const profileParam = new URLSearchParams(window.location.search).get('touch');
+  const profileParam = URL_QUERY.get('touch');
   if (profileParam === 'precise' || profileParam === 'easy') return profileParam;
   try {
     const saved = window.localStorage.getItem(TOUCH_PROFILE_STORAGE_KEY);

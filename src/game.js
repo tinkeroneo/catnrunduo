@@ -38,6 +38,8 @@ const MOUSE_COLLECT_RADIUS_Y = 22;
 const ENEMY_STOMP_WINDOW_NORMAL = 18;
 const ENEMY_STOMP_WINDOW_BOSS = 24;
 const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
+const CAMERA_LOOKAHEAD_X = 140;
+const CAMERA_LOOKAHEAD_LERP = 0.18;
 const TOUCH_MOVE_DEADZONE_PX = 10;
 const TOUCH_SWIPE_UP_MIN_PX = 20;
 const TOUCH_SWIPE_SIDE_MIN_PX = 12;
@@ -160,6 +162,7 @@ let statusFadeStartAt = 0;
 let restartKey;
 let pauseKey;
 let pauseText;
+let restartTouchButton;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -178,6 +181,7 @@ let enemyChaseAnimKey = null;
 let mobileFullscreenRequested = false;
 let mobileViewportBound = false;
 let mobileViewportHandler = null;
+let cameraLookAheadX = 0;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -903,6 +907,7 @@ function create() {
   this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   this.cameras.main.setBackgroundColor(theme.sky);
   this.cameras.main.startFollow(player, true, 0.08, 0.08);
+  this.cameras.main.setFollowOffset(0, 0);
   this.cameras.main.roundPixels = true;
   this.cameras.main.setDeadzone(220, 90);
 
@@ -1019,6 +1024,27 @@ function create() {
     .setScrollFactor(0)
     .setDepth(20)
     .setVisible(false);
+
+  const isMobileUi = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+  if (isMobileUi) {
+    restartTouchButton = this.add
+      .text(940, 14, 'Restart', {
+        fontFamily: 'Segoe UI, sans-serif',
+        fontSize: '18px',
+        color: '#ffffff',
+        backgroundColor: '#1f2a44cc',
+        padding: { x: 10, y: 6 },
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(40)
+      .setInteractive({ useHandCursor: true });
+    restartTouchButton.on('pointerdown', () => {
+      restartRun();
+    });
+  } else {
+    restartTouchButton = null;
+  }
 
   initSfx(this);
   setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge.`, 2600);
@@ -1899,8 +1925,7 @@ function update() {
 
   if (gameWon || gameOver) {
     if (Phaser.Input.Keyboard.JustDown(restartKey)) {
-      currentLevel = 1;
-      sceneRef.scene.restart();
+      restartRun();
     }
     return;
   }
@@ -1931,6 +1956,7 @@ function update() {
   } else {
     player.setVelocityX(0);
   }
+  updateCameraLookAhead();
 
   if (jumpBufferedUntil >= now) {
     if (canGroundJump) {
@@ -2502,4 +2528,16 @@ function syncMobileViewport(scene) {
   if (scene?.scale) {
     scene.scale.resize(viewportW, viewportH);
   }
+}
+
+function updateCameraLookAhead() {
+  if (!sceneRef?.cameras?.main || !player) return;
+  const target = player.flipX ? -CAMERA_LOOKAHEAD_X : CAMERA_LOOKAHEAD_X;
+  cameraLookAheadX += (target - cameraLookAheadX) * CAMERA_LOOKAHEAD_LERP;
+  sceneRef.cameras.main.setFollowOffset(Math.round(cameraLookAheadX), 0);
+}
+
+function restartRun() {
+  currentLevel = 1;
+  sceneRef.scene.restart();
 }

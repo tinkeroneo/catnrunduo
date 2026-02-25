@@ -41,7 +41,6 @@ const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
 const TOUCH_MOVE_DEADZONE_PX = 12;
 const TOUCH_SWIPE_UP_MIN_PX = 24;
 const TOUCH_SWIPE_SIDE_MIN_PX = 14;
-const TOUCH_SWIPE_MOVE_MS = 220;
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
 const THEMES = [
@@ -182,8 +181,8 @@ let touchControls = {
   moveDir: 0,
   swipePointers: new Map(),
   jumpQueued: false,
-  swipeMoveDir: 0,
-  swipeMoveUntil: 0,
+  swipeLatchPointerId: null,
+  swipeLatchDir: 0,
 };
 
 function preload() {
@@ -1904,10 +1903,8 @@ function update() {
   const keyboardLeft = cursors.left.isDown || wasd.A.isDown;
   const keyboardRight = cursors.right.isDown || wasd.D.isDown;
   const keyboardJump = cursors.space.isDown || cursors.up.isDown || wasd.W.isDown;
-  const now = sceneRef.time.now;
-  const touchSwipeDir = now <= touchControls.swipeMoveUntil ? touchControls.swipeMoveDir : 0;
-  const touchLeft = touchControls.moveDir < 0 || touchSwipeDir < 0;
-  const touchRight = touchControls.moveDir > 0 || touchSwipeDir > 0;
+  const touchLeft = touchControls.moveDir < 0 || touchControls.swipeLatchDir < 0;
+  const touchRight = touchControls.moveDir > 0 || touchControls.swipeLatchDir > 0;
   const left = keyboardLeft || touchLeft;
   const right = keyboardRight || touchRight;
   const jumpDown = keyboardJump;
@@ -2376,8 +2373,8 @@ function setupTouchControls(scene) {
     moveDir: 0,
     swipePointers: new Map(),
     jumpQueued: false,
-    swipeMoveDir: 0,
-    swipeMoveUntil: 0,
+    swipeLatchPointerId: null,
+    swipeLatchDir: 0,
   };
 
   const onDown = (pointer) => {
@@ -2414,8 +2411,8 @@ function setupTouchControls(scene) {
       if (up >= TOUCH_SWIPE_UP_MIN_PX) {
         touchControls.jumpQueued = true;
         if (Math.abs(dx) >= TOUCH_SWIPE_SIDE_MIN_PX) {
-          touchControls.swipeMoveDir = dx > 0 ? 1 : -1;
-          touchControls.swipeMoveUntil = scene.time.now + TOUCH_SWIPE_MOVE_MS;
+          touchControls.swipeLatchPointerId = pointer.id;
+          touchControls.swipeLatchDir = dx > 0 ? 1 : -1;
         }
         swipe.consumed = true;
       }
@@ -2426,6 +2423,10 @@ function setupTouchControls(scene) {
     if (touchControls.movePointerId === pointer.id) {
       touchControls.movePointerId = null;
       touchControls.moveDir = 0;
+    }
+    if (touchControls.swipeLatchPointerId === pointer.id) {
+      touchControls.swipeLatchPointerId = null;
+      touchControls.swipeLatchDir = 0;
     }
     touchControls.swipePointers.delete(pointer.id);
   };

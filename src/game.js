@@ -2741,12 +2741,20 @@ function isMobileRuntime() {
 
 function createMobileRoundButton(scene, icon, onPress) {
   const radius = Math.round(MOBILE_BUTTON_SIZE_PX * 0.5);
+  const shadow = scene.add
+    .circle(0, 0, radius + 1, 0x000000, 0.18)
+    .setScrollFactor(0)
+    .setDepth(39);
   const background = scene.add
-    .circle(0, 0, radius, 0x1f2a44, 0.84)
-    .setStrokeStyle(2, 0xffffff, 0.85)
+    .circle(0, 0, radius, 0x2a3a5e, 0.72)
+    .setStrokeStyle(2, 0xffffff, 0.65)
     .setScrollFactor(0)
     .setDepth(40)
     .setInteractive({ useHandCursor: true });
+  const gloss = scene.add
+    .ellipse(0, -Math.round(radius * 0.34), Math.round(radius * 1.18), Math.round(radius * 0.62), 0xffffff, 0.18)
+    .setScrollFactor(0)
+    .setDepth(40);
   const label = scene.add
     .text(0, 0, icon, {
       fontFamily: 'Segoe UI Symbol, Segoe UI, sans-serif',
@@ -2758,9 +2766,17 @@ function createMobileRoundButton(scene, icon, onPress) {
     .setDepth(41);
 
   background.on('pointerdown', onPress);
+  background.on('pointerover', () => {
+    background.setFillStyle(0x2a3a5e, 0.82);
+  });
+  background.on('pointerout', () => {
+    background.setFillStyle(0x2a3a5e, 0.72);
+  });
   return {
     setPosition(x, y) {
+      shadow.setPosition(x + 1, y + 2);
       background.setPosition(x, y);
+      gloss.setPosition(x, y - Math.round(radius * 0.34));
       label.setPosition(x, y);
     },
     setIcon(nextIcon) {
@@ -2768,7 +2784,9 @@ function createMobileRoundButton(scene, icon, onPress) {
     },
     destroy() {
       label.destroy();
+      gloss.destroy();
       background.destroy();
+      shadow.destroy();
     },
   };
 }

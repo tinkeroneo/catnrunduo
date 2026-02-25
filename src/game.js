@@ -2402,8 +2402,9 @@ function setupTouchControls(scene) {
     const width = scene.scale.width;
     const height = scene.scale.height;
     const tapZoneTop = height * TOUCH_TAP_ZONE_TOP_RATIO;
+    const inTapBand = pointer.y >= tapZoneTop;
 
-    if (pointer.y >= tapZoneTop) {
+    if (inTapBand) {
       if (pointer.x < width * 0.33) {
         if (touchControls.movePointerId == null) {
           touchControls.movePointerId = pointer.id;
@@ -2422,15 +2423,13 @@ function setupTouchControls(scene) {
       updateTouchZoneOverlayState(pointer.x, pointer.y);
     }
 
-    const half = scene.scale.width * 0.5;
-    if (pointer.x < half && touchControls.movePointerId == null) {
-      if (touchControls.movePointerId == null) {
-        touchControls.movePointerId = pointer.id;
-        touchControls.moveMode = 'drag';
-        touchControls.moveStartX = pointer.x;
-        touchControls.moveX = pointer.x;
-        touchControls.moveDir = 0;
-      }
+    // Gesture movement can start from anywhere outside the fixed bottom tap zones.
+    if (!inTapBand && touchControls.movePointerId == null) {
+      touchControls.movePointerId = pointer.id;
+      touchControls.moveMode = 'drag';
+      touchControls.moveStartX = pointer.x;
+      touchControls.moveX = pointer.x;
+      touchControls.moveDir = 0;
     }
     touchControls.swipePointers.set(pointer.id, {
       startX: pointer.x,

@@ -165,6 +165,7 @@ let restartKey;
 let pauseKey;
 let pauseText;
 let restartTouchButton;
+let pauseTouchButton;
 let touchProfileButton;
 let sceneRef;
 let parallaxLayers = [];
@@ -1055,8 +1056,23 @@ function create() {
     restartTouchButton.on('pointerdown', () => {
       restartRun();
     });
+    pauseTouchButton = this.add
+      .text(940, 50, 'Pause', {
+        fontFamily: 'Segoe UI, sans-serif',
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#1f2a44cc',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(40)
+      .setInteractive({ useHandCursor: true });
+    pauseTouchButton.on('pointerdown', () => {
+      togglePause();
+    });
     touchProfileButton = this.add
-      .text(940, 50, `Touch: ${touchProfileMode}`, {
+      .text(940, 86, `Touch: ${touchProfileMode}`, {
         fontFamily: 'Segoe UI, sans-serif',
         fontSize: '16px',
         color: '#ffffff',
@@ -1074,6 +1090,7 @@ function create() {
     });
   } else {
     restartTouchButton = null;
+    pauseTouchButton = null;
     touchProfileButton = null;
   }
 
@@ -1898,15 +1915,7 @@ function carryPlayerOnMovingPlatforms() {
 
 function update() {
   if (Phaser.Input.Keyboard.JustDown(pauseKey) && !gameWon && !gameOver) {
-    gamePaused = !gamePaused;
-    pauseText.setVisible(gamePaused);
-    if (gamePaused) {
-      sceneRef.physics.world.pause();
-      setStatus('Spiel pausiert.', 0);
-    } else {
-      sceneRef.physics.world.resume();
-      setStatus('Weiter gehts.', 900);
-    }
+    togglePause();
   }
 
   if (gamePaused) {
@@ -2604,8 +2613,33 @@ function updateCameraLookAhead() {
 }
 
 function restartRun() {
+  if (gamePaused) {
+    togglePause(false, true);
+  }
   currentLevel = 1;
   sceneRef.scene.restart();
+}
+
+function togglePause(forceState = null, silent = false) {
+  if (!sceneRef || gameWon || gameOver) return;
+  const nextState = typeof forceState === 'boolean' ? forceState : !gamePaused;
+  if (nextState === gamePaused) return;
+  gamePaused = nextState;
+  pauseText?.setVisible(gamePaused);
+  pauseTouchButton?.setText(gamePaused ? 'Weiter' : 'Pause');
+  if (gamePaused) {
+    sceneRef.physics.world.pause();
+    if (bgMusic && !bgMusic.paused) bgMusic.pause();
+    if (!silent) setStatus('Spiel pausiert.', 0);
+    return;
+  }
+  sceneRef.physics.world.resume();
+  if (bgMusic && bgMusic.paused) {
+    bgMusic.play().catch(() => {
+      // Audio may still be gesture-blocked; ignore.
+    });
+  }
+  if (!silent) setStatus('Weiter gehts.', 900);
 }
 
 function isMobileRuntime() {

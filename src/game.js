@@ -51,6 +51,8 @@ const TOUCH_SWIPE_SIDE_MIN_PX = 12;
 const HUNTER_CHASE_SPEED_MUL = 1.62;
 const HUNTER_TINT_IDLE = 0xffd27a;
 const HUNTER_TINT_CHASE = 0xff9a52;
+const BOSS_PHASE2_SPEED_MUL = 1.34;
+const BOSS_PHASE2_TINT = 0xff7f6e;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
@@ -907,6 +909,7 @@ function create() {
     boss.setData('isBoss', true);
     boss.setData('hp', levelConfig.boss.hp);
     boss.setData('maxHp', levelConfig.boss.hp);
+    boss.setData('phase2', false);
     boss.setData('minX', levelConfig.boss.minX);
     boss.setData('maxX', levelConfig.boss.maxX);
     const bossSpeed = Math.round(levelConfig.boss.speed * getThemeGameplay().enemySpeedMul);
@@ -1253,6 +1256,12 @@ function hitEnemy(playerSprite, enemy) {
     if (isBoss) {
       const nextHp = Math.max(0, enemy.getData('hp') - 1);
       enemy.setData('hp', nextHp);
+      const maxHp = enemy.getData('maxHp') ?? nextHp;
+      const phase2Threshold = Math.ceil(maxHp * 0.5);
+      if (!enemy.getData('phase2') && nextHp > 0 && nextHp <= phase2Threshold) {
+        enemy.setData('phase2', true);
+        setStatus('Boss Phase 2! Vorsicht!', 1700);
+      }
       playerSprite.setVelocityY(-460);
       score += Math.round(getThemeGameplay().stompPoints * 1.6);
       scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
@@ -1312,6 +1321,8 @@ function updateEnemies() {
     const maxX = enemy.getData('maxX');
     const baseSpeed = enemy.getData('baseSpeed') ?? enemy.getData('speed');
     const enemyType = enemy.getData('enemyType') === 'hunter' ? 'hunter' : 'patrol';
+    const isBoss = !!enemy.getData('isBoss');
+    const isBossPhase2 = isBoss && !!enemy.getData('phase2');
     let speed = Math.round(baseSpeed * (currentLevelModifier.enemySpeedMul ?? 1));
     let dir = enemy.getData('dir');
     let isChasing = false;
@@ -1331,20 +1342,25 @@ function updateEnemies() {
 
     if (enemy.x <= minX) dir = 1;
     if (enemy.x >= maxX) dir = -1;
+    if (isBossPhase2) {
+      speed = Math.round(speed * BOSS_PHASE2_SPEED_MUL);
+    }
 
     enemy.setData('isChasing', isChasing);
     enemy.setData('speed', speed);
     enemy.setData('dir', dir);
     enemy.setVelocityX(speed * dir);
     enemy.setFlipX(dir < 0);
-    if (enemyType === 'hunter') {
+    if (isBossPhase2) {
+      enemy.setTint(BOSS_PHASE2_TINT);
+    } else if (enemyType === 'hunter') {
       enemy.setTint(isChasing ? HUNTER_TINT_CHASE : HUNTER_TINT_IDLE);
     } else {
       enemy.clearTint();
     }
 
     if (useSheetDog) {
-      const targetAnim = isChasing && enemyChaseAnimKey ? enemyChaseAnimKey : enemyRunAnimKey;
+      const targetAnim = (isChasing || isBossPhase2) && enemyChaseAnimKey ? enemyChaseAnimKey : enemyRunAnimKey;
       if (targetAnim && enemy.anims.currentAnim?.key !== targetAnim) {
         enemy.anims.play(targetAnim, true);
       }

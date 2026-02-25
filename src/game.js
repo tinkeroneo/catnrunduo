@@ -179,6 +179,12 @@ let enemyChaseAnimKey = null;
 let mobileFullscreenRequested = false;
 let mobileViewportBound = false;
 let mobileViewportHandler = null;
+let touchZoneOverlays = {
+  left: null,
+  right: null,
+  jump: null,
+  labels: [],
+};
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -914,6 +920,7 @@ function create() {
   setupTouchControls(this);
   bindMobileViewportSync(this);
   syncMobileViewport(this);
+  createTouchZoneOverlays(this);
 
   levelText = this.add
     .text(16, 40, `Level: ${currentLevel}/${MAX_LEVEL}`, {
@@ -2412,6 +2419,7 @@ function setupTouchControls(scene) {
       } else {
         touchControls.jumpQueued = true;
       }
+      updateTouchZoneOverlayState(pointer.x, pointer.y);
     }
 
     const half = scene.scale.width * 0.5;
@@ -2438,6 +2446,7 @@ function setupTouchControls(scene) {
       if (dx > TOUCH_MOVE_DEADZONE_PX) touchControls.moveDir = 1;
       else if (dx < -TOUCH_MOVE_DEADZONE_PX) touchControls.moveDir = -1;
       else touchControls.moveDir = 0;
+      updateTouchZoneOverlayState(pointer.x, pointer.y);
     }
 
     const swipe = touchControls.swipePointers.get(pointer.id);
@@ -2451,6 +2460,7 @@ function setupTouchControls(scene) {
           touchControls.swipeLatchDir = dx > 0 ? 1 : -1;
         }
         swipe.consumed = true;
+        updateTouchZoneOverlayState(pointer.x, pointer.y);
       }
     }
   };
@@ -2466,6 +2476,7 @@ function setupTouchControls(scene) {
       touchControls.swipeLatchDir = 0;
     }
     touchControls.swipePointers.delete(pointer.id);
+    updateTouchZoneOverlayState();
   };
 
   scene.input.on('pointerdown', onDown);
@@ -2498,6 +2509,69 @@ function requestMobileFullscreen() {
   }
 }
 
+function createTouchZoneOverlays(scene) {
+  if (touchZoneOverlays.left) touchZoneOverlays.left.destroy();
+  if (touchZoneOverlays.right) touchZoneOverlays.right.destroy();
+  if (touchZoneOverlays.jump) touchZoneOverlays.jump.destroy();
+  touchZoneOverlays.labels.forEach((o) => o.destroy());
+  touchZoneOverlays = { left: null, right: null, jump: null, labels: [] };
+
+  const isMobile = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+  if (!isMobile) return;
+
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  const top = h * TOUCH_TAP_ZONE_TOP_RATIO;
+  const zoneH = h - top;
+  const third = w / 3;
+
+  const leftZone = scene.add.rectangle(third * 0.5, top + zoneH * 0.5, third, zoneH, 0x1f9d55, 0.16)
+    .setScrollFactor(0)
+    .setDepth(30);
+  const rightZone = scene.add.rectangle(third * 1.5, top + zoneH * 0.5, third, zoneH, 0x1f6fb2, 0.16)
+    .setScrollFactor(0)
+    .setDepth(30);
+  const jumpZone = scene.add.rectangle(third * 2.5, top + zoneH * 0.5, third, zoneH, 0xb24a1f, 0.2)
+    .setScrollFactor(0)
+    .setDepth(30);
+
+  const mkLabel = (x, text) => scene.add.text(x, top + zoneH * 0.5, text, {
+    fontFamily: 'Segoe UI, sans-serif',
+    fontSize: '16px',
+    color: '#ffffff',
+    stroke: '#1f2a44',
+    strokeThickness: 4,
+  }).setOrigin(0.5).setScrollFactor(0).setDepth(31);
+
+  const leftLabel = mkLabel(third * 0.5, 'LEFT');
+  const rightLabel = mkLabel(third * 1.5, 'RIGHT');
+  const jumpLabel = mkLabel(third * 2.5, 'JUMP');
+
+  touchZoneOverlays.left = leftZone;
+  touchZoneOverlays.right = rightZone;
+  touchZoneOverlays.jump = jumpZone;
+  touchZoneOverlays.labels = [leftLabel, rightLabel, jumpLabel];
+  updateTouchZoneOverlayState();
+}
+
+function updateTouchZoneOverlayState(activeX = null, activeY = null) {
+  if (!touchZoneOverlays.left || !touchZoneOverlays.right || !touchZoneOverlays.jump) return;
+  const base = { left: 0.16, right: 0.16, jump: 0.2 };
+  const hot = { left: 0.34, right: 0.34, jump: 0.4 };
+  touchZoneOverlays.left.setFillStyle(0x1f9d55, base.left);
+  touchZoneOverlays.right.setFillStyle(0x1f6fb2, base.right);
+  touchZoneOverlays.jump.setFillStyle(0xb24a1f, base.jump);
+
+  if (activeX == null || activeY == null || !sceneRef?.scale) return;
+  const w = sceneRef.scale.width;
+  const h = sceneRef.scale.height;
+  if (activeY < h * TOUCH_TAP_ZONE_TOP_RATIO) return;
+
+  if (activeX < w * 0.33) touchZoneOverlays.left.setFillStyle(0x1f9d55, hot.left);
+  else if (activeX < w * 0.66) touchZoneOverlays.right.setFillStyle(0x1f6fb2, hot.right);
+  else touchZoneOverlays.jump.setFillStyle(0xb24a1f, hot.jump);
+}
+
 function bindMobileViewportSync(scene) {
   if (mobileViewportBound) return;
   mobileViewportBound = true;
@@ -2526,4 +2600,5 @@ function syncMobileViewport(scene) {
   if (scene?.scale) {
     scene.scale.resize(viewportW, viewportH);
   }
+  if (scene) createTouchZoneOverlays(scene);
 }

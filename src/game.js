@@ -41,6 +41,9 @@ const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
 const TOUCH_MOVE_DEADZONE_PX = 12;
 const TOUCH_SWIPE_UP_MIN_PX = 24;
 const TOUCH_SWIPE_SIDE_MIN_PX = 14;
+const TOUCH_TAP_ZONE_TOP_RATIO = 0.58;
+const JUMP_COYOTE_MS = 110;
+const JUMP_BUFFER_MS = 120;
 const DOG_SHEET_KEYS = ['dog_sheet_new', 'dog_sheet_legacy'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new', 'dog_chase_sheet_new_nodot', 'dog_chase_sheet_legacy'];
 const THEMES = [
@@ -116,6 +119,8 @@ let cursors;
 let wasd;
 let canDoubleJump = false;
 let jumpPressed = false;
+let lastGroundedAt = 0;
+let jumpBufferedUntil = 0;
 let gameWon = false;
 let gameOver = false;
 let gamePaused = false;
@@ -176,6 +181,7 @@ let mobileViewportBound = false;
 let mobileViewportHandler = null;
 let touchControls = {
   movePointerId: null,
+  moveMode: 'drag',
   moveStartX: 0,
   moveX: 0,
   moveDir: 0,
@@ -1903,12 +1909,16 @@ function update() {
   const keyboardLeft = cursors.left.isDown || wasd.A.isDown;
   const keyboardRight = cursors.right.isDown || wasd.D.isDown;
   const keyboardJump = cursors.space.isDown || cursors.up.isDown || wasd.W.isDown;
+  const now = sceneRef.time.now;
+  if (player.body.blocked.down) lastGroundedAt = now;
   const touchLeft = touchControls.moveDir < 0 || touchControls.swipeLatchDir < 0;
   const touchRight = touchControls.moveDir > 0 || touchControls.swipeLatchDir > 0;
   const left = keyboardLeft || touchLeft;
   const right = keyboardRight || touchRight;
   const jumpDown = keyboardJump;
   const jumpRequested = (keyboardJump && !jumpPressed) || touchControls.jumpQueued;
+  if (jumpRequested) jumpBufferedUntil = now + JUMP_BUFFER_MS;
+  const canGroundJump = player.body.blocked.down || (now - lastGroundedAt) <= JUMP_COYOTE_MS;
   const runSpeed = isBoosted ? 330 : 260;
   const jumpMain = isBoosted ? -620 : -560;
   const jumpDouble = isBoosted ? -550 : -500;
@@ -1923,13 +1933,15 @@ function update() {
     player.setVelocityX(0);
   }
 
-  if (jumpRequested) {
-    if (player.body.blocked.down) {
+  if (jumpBufferedUntil >= now) {
+    if (canGroundJump) {
       player.setVelocityY(jumpMain);
       canDoubleJump = true;
+      jumpBufferedUntil = 0;
     } else if (canDoubleJump) {
       player.setVelocityY(jumpDouble);
       canDoubleJump = false;
+      jumpBufferedUntil = 0;
     }
   }
 
@@ -2368,6 +2380,7 @@ function clampValue(v, min, max) {
 function setupTouchControls(scene) {
   touchControls = {
     movePointerId: null,
+    moveMode: 'drag',
     moveStartX: 0,
     moveX: 0,
     moveDir: 0,
@@ -2379,10 +2392,33 @@ function setupTouchControls(scene) {
 
   const onDown = (pointer) => {
     requestMobileFullscreen();
+    const width = scene.scale.width;
+    const height = scene.scale.height;
+    const tapZoneTop = height * TOUCH_TAP_ZONE_TOP_RATIO;
+
+    if (pointer.y >= tapZoneTop) {
+      if (pointer.x < width * 0.33) {
+        if (touchControls.movePointerId == null) {
+          touchControls.movePointerId = pointer.id;
+          touchControls.moveMode = 'zone';
+          touchControls.moveDir = -1;
+        }
+      } else if (pointer.x < width * 0.66) {
+        if (touchControls.movePointerId == null) {
+          touchControls.movePointerId = pointer.id;
+          touchControls.moveMode = 'zone';
+          touchControls.moveDir = 1;
+        }
+      } else {
+        touchControls.jumpQueued = true;
+      }
+    }
+
     const half = scene.scale.width * 0.5;
-    if (pointer.x < half) {
+    if (pointer.x < half && touchControls.movePointerId == null) {
       if (touchControls.movePointerId == null) {
         touchControls.movePointerId = pointer.id;
+        touchControls.moveMode = 'drag';
         touchControls.moveStartX = pointer.x;
         touchControls.moveX = pointer.x;
         touchControls.moveDir = 0;
@@ -2396,7 +2432,7 @@ function setupTouchControls(scene) {
   };
 
   const onMove = (pointer) => {
-    if (touchControls.movePointerId === pointer.id) {
+    if (touchControls.movePointerId === pointer.id && touchControls.moveMode === 'drag') {
       touchControls.moveX = pointer.x;
       const dx = touchControls.moveX - touchControls.moveStartX;
       if (dx > TOUCH_MOVE_DEADZONE_PX) touchControls.moveDir = 1;
@@ -2422,6 +2458,7 @@ function setupTouchControls(scene) {
   const onUp = (pointer) => {
     if (touchControls.movePointerId === pointer.id) {
       touchControls.movePointerId = null;
+      touchControls.moveMode = 'drag';
       touchControls.moveDir = 0;
     }
     if (touchControls.swipeLatchPointerId === pointer.id) {

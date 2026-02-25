@@ -38,7 +38,7 @@ const MOUSE_COLLECT_RADIUS_Y = 22;
 const ENEMY_STOMP_WINDOW_NORMAL = 18;
 const ENEMY_STOMP_WINDOW_BOSS = 24;
 const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
-const CAMERA_LOOKAHEAD_X = 140;
+const CAMERA_LOOKAHEAD_X = 100;
 const CAMERA_LOOKAHEAD_LERP = 0.18;
 const TOUCH_MOVE_DEADZONE_PX = 10;
 const TOUCH_SWIPE_UP_MIN_PX = 20;
@@ -2532,7 +2532,8 @@ function syncMobileViewport(scene) {
 
 function updateCameraLookAhead() {
   if (!sceneRef?.cameras?.main || !player) return;
-  const target = player.flipX ? -CAMERA_LOOKAHEAD_X : CAMERA_LOOKAHEAD_X;
+  // When facing right, keep the cat slightly left on screen (and vice versa).
+  const target = player.flipX ? CAMERA_LOOKAHEAD_X : -CAMERA_LOOKAHEAD_X;
   cameraLookAheadX += (target - cameraLookAheadX) * CAMERA_LOOKAHEAD_LERP;
   sceneRef.cameras.main.setFollowOffset(Math.round(cameraLookAheadX), 0);
 }

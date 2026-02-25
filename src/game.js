@@ -1,5 +1,6 @@
 const WORLD_WIDTH = 2600;
 const WORLD_HEIGHT = 720;
+const BASE_GRAVITY_Y = 1200;
 const MAX_LEVEL = 52;
 const MOVING_V_MIN_Y = 180;
 const MOVING_V_MAX_Y = WORLD_HEIGHT - 170;
@@ -40,6 +41,8 @@ const MOUSE_COMBO_MULTIPLIERS = [1, 1.2, 1.5, 2.0];
 const ENEMY_STOMP_WINDOW_NORMAL = 18;
 const ENEMY_STOMP_WINDOW_BOSS = 24;
 const ENEMY_STOMP_MIN_DESCEND_SPEED = 35;
+const ENEMY_STOMP_COYOTE_ASCEND_SPEED = -75;
+const ENEMY_STOMP_COYOTE_TOP_EXTRA_PX = 12;
 const CAMERA_LOOKAHEAD_X = 100;
 const CAMERA_LOOKAHEAD_LERP = 0.18;
 const TOUCH_MOVE_DEADZONE_PX = 10;
@@ -95,6 +98,14 @@ const ANIM_CONFIG = {
   dogRun: { fps: 10, repeat: -1 },
   dogChase: { fps: 12, repeat: -1 },
 };
+const LEVEL_MODIFIERS = [
+  { key: 'normal', label: 'Normal', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 0 },
+  { key: 'low_gravity', label: 'Low Gravity', gravityMul: 0.86, runMul: 1, enemySpeedMul: 1, windX: 0 },
+  { key: 'sticky', label: 'Sticky Ground', gravityMul: 1, runMul: 0.84, enemySpeedMul: 1, windX: 0 },
+  { key: 'wind_right', label: 'Wind ->', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 24 },
+  { key: 'wind_left', label: '<- Wind', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: -24 },
+  { key: 'fast_patrol', label: 'Fast Patrol', gravityMul: 1, runMul: 1, enemySpeedMul: 1.16, windX: 0 },
+];
 const MOBILE_BUTTON_SIZE_PX = 46;
 const MOBILE_BUTTON_ICONS = {
   restart: '↻',
@@ -159,7 +170,7 @@ const config = {
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { y: 1200 },
+      gravity: { y: BASE_GRAVITY_Y },
       debug: false,
     },
   },
@@ -206,6 +217,7 @@ let runStartMs = 0;
 let bestTimeMs = null;
 let currentLevel = 1;
 let currentTheme = THEMES[0];
+let currentLevelModifier = LEVEL_MODIFIERS[0];
 let respawnX = 100;
 let respawnY = WORLD_HEIGHT - 120;
 let scoreText;
@@ -700,6 +712,8 @@ function create() {
 
   const theme = getThemeForLevel(currentLevel);
   currentTheme = theme;
+  currentLevelModifier = getLevelModifier(currentLevel);
+  this.physics.world.gravity.y = Math.round(BASE_GRAVITY_Y * (currentLevelModifier.gravityMul ?? 1));
   createParallaxBackground(this, theme);
   const groundKey = ensureGroundTexture(this, theme);
   const platforms = this.physics.add.staticGroup();
@@ -1106,7 +1120,7 @@ function create() {
   if (FORCE_TEST_LEVEL) {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
   } else {
-    setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge.`, 2600);
+    setStatus(`Level ${currentLevel}: Sammle alle Maeuse und erreiche die Flagge. Mod: ${currentLevelModifier.label}`, 3200);
   }
 }
 
@@ -1226,12 +1240,16 @@ function hitEnemy(playerSprite, enemy) {
 
   const isBoss = !!enemy.getData('isBoss');
   const stompWindow = isBoss ? ENEMY_STOMP_WINDOW_BOSS : ENEMY_STOMP_WINDOW_NORMAL;
-  const isDescending = playerSprite.body.velocity.y > ENEMY_STOMP_MIN_DESCEND_SPEED;
+  const vy = playerSprite.body.velocity.y;
+  const isDescending = vy > ENEMY_STOMP_MIN_DESCEND_SPEED;
   const fromAboveByTop = playerSprite.body.bottom <= enemy.body.top + stompWindow;
   const fromAboveByCenter = playerSprite.body.center.y < enemy.body.center.y;
-  const fromAbove = fromAboveByTop || fromAboveByCenter;
+  const nearTopCoyote = vy > ENEMY_STOMP_COYOTE_ASCEND_SPEED
+    && playerSprite.body.bottom <= enemy.body.top + stompWindow + ENEMY_STOMP_COYOTE_TOP_EXTRA_PX
+    && playerSprite.body.center.y < enemy.body.center.y - 4;
+  const fromAbove = fromAboveByTop || fromAboveByCenter || nearTopCoyote;
 
-  if (isDescending && fromAbove) {
+  if ((isDescending || nearTopCoyote) && fromAbove) {
     if (isBoss) {
       const nextHp = Math.max(0, enemy.getData('hp') - 1);
       enemy.setData('hp', nextHp);
@@ -1294,7 +1312,7 @@ function updateEnemies() {
     const maxX = enemy.getData('maxX');
     const baseSpeed = enemy.getData('baseSpeed') ?? enemy.getData('speed');
     const enemyType = enemy.getData('enemyType') === 'hunter' ? 'hunter' : 'patrol';
-    let speed = baseSpeed;
+    let speed = Math.round(baseSpeed * (currentLevelModifier.enemySpeedMul ?? 1));
     let dir = enemy.getData('dir');
     let isChasing = false;
 
@@ -2041,7 +2059,8 @@ function update() {
   const jumpRequested = (keyboardJump && !jumpPressed) || touchControls.jumpQueued;
   if (jumpRequested) jumpBufferedUntil = now + JUMP_BUFFER_MS;
   const canGroundJump = player.body.blocked.down || (now - lastGroundedAt) <= JUMP_COYOTE_MS;
-  const runSpeed = isBoosted ? 330 : 260;
+  const modifierRunMul = currentLevelModifier.runMul ?? 1;
+  const runSpeed = Math.round((isBoosted ? 330 : 260) * modifierRunMul);
   const jumpMain = isBoosted ? -620 : -560;
   const jumpDouble = isBoosted ? -550 : -500;
 
@@ -2053,6 +2072,13 @@ function update() {
     player.setFlipX(false);
   } else {
     player.setVelocityX(0);
+  }
+  const windX = currentLevelModifier.windX ?? 0;
+  if (windX !== 0) {
+    const windFactor = player.body.blocked.down ? 0.4 : 1;
+    const boostedByWind = player.body.velocity.x + windX * windFactor;
+    const maxAbs = runSpeed + 80;
+    player.setVelocityX(clampValue(boostedByWind, -maxAbs, maxAbs));
   }
   updateCameraLookAhead();
 
@@ -2404,6 +2430,12 @@ function getLevelConfig(level) {
   }
 
   return getGeneratedLevelConfig(level);
+}
+
+function getLevelModifier(level) {
+  if (level <= 1) return LEVEL_MODIFIERS[0];
+  const idx = 1 + ((level - 2) % (LEVEL_MODIFIERS.length - 1));
+  return LEVEL_MODIFIERS[idx];
 }
 
 function getTestLevelConfig() {

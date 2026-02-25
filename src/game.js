@@ -46,6 +46,8 @@ const TOUCH_MOVE_DEADZONE_PX = 10;
 const TOUCH_SWIPE_UP_MIN_PX = 20;
 const TOUCH_SWIPE_SIDE_MIN_PX = 12;
 const HUNTER_CHASE_SPEED_MUL = 1.62;
+const HUNTER_TINT_IDLE = 0xffd27a;
+const HUNTER_TINT_CHASE = 0xff9a52;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
@@ -870,7 +872,11 @@ function create() {
     enemy.setData('baseSpeed', enemySpeed);
     enemy.setData('dir', -1);
     enemy.setData('isChasing', false);
-    enemy.setData('enemyType', spawn.type === 'hunter' ? 'hunter' : 'patrol');
+    const enemyType = spawn.type === 'hunter' ? 'hunter' : 'patrol';
+    enemy.setData('enemyType', enemyType);
+    if (enemyType === 'hunter') {
+      enemy.setTint(HUNTER_TINT_IDLE);
+    }
     enemy.setVelocityX(-enemySpeed);
     if (enemyRunAnimKey) enemy.anims.play(enemyRunAnimKey, true);
   });
@@ -1313,6 +1319,11 @@ function updateEnemies() {
     enemy.setData('dir', dir);
     enemy.setVelocityX(speed * dir);
     enemy.setFlipX(dir < 0);
+    if (enemyType === 'hunter') {
+      enemy.setTint(isChasing ? HUNTER_TINT_CHASE : HUNTER_TINT_IDLE);
+    } else {
+      enemy.clearTint();
+    }
 
     if (useSheetDog) {
       const targetAnim = isChasing && enemyChaseAnimKey ? enemyChaseAnimKey : enemyRunAnimKey;

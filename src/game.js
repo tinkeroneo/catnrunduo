@@ -1,6 +1,8 @@
 const WORLD_WIDTH = 2600;
 const WORLD_HEIGHT = 720;
 const BASE_GRAVITY_Y = 1200;
+const GROUND_PICKUP_Y = WORLD_HEIGHT - 88;
+const GROUND_SPRING_Y = WORLD_HEIGHT - 84;
 const MAX_LEVEL = 52;
 const MOVING_V_MIN_Y = 180;
 const MOVING_V_MAX_Y = WORLD_HEIGHT - 170;
@@ -780,7 +782,8 @@ function create() {
   levelConfig.platforms.forEach((entry) => {
     const p = normalizePlatformEntry(entry);
     if (p.type === 'spring') {
-      springPlatforms.create(p.x, p.y, 'platform_spring').setScale(1.4, 0.8).refreshBody();
+      const spring = springPlatforms.create(p.x, p.y, 'platform_spring').setScale(1.4, 0.8).refreshBody();
+      spring.setData('springCooldownUntil', 0);
       return;
     }
     if (p.type === 'crumbly') {
@@ -1980,11 +1983,18 @@ function respawnPlayer() {
 
 function onSpringPlatform(playerSprite, platform) {
   if (gameWon || gameOver || gamePaused) return;
-  const fromAbove = playerSprite.body.velocity.y >= 0 && playerSprite.body.bottom <= platform.body.top + 18;
+  const now = sceneRef.time.now;
+  if ((platform.getData('springCooldownUntil') || 0) > now) return;
+  const body = playerSprite.body;
+  const touchingDown = body.touching.down || body.blocked.down;
+  const comingFromAbove = body.velocity.y >= -140 && body.bottom <= platform.body.top + 26;
+  const horizontalOverlap = body.right >= platform.body.left + 3 && body.left <= platform.body.right - 3;
+  const fromAbove = touchingDown && comingFromAbove && horizontalOverlap;
   if (!fromAbove) return;
   const boosted = sceneRef.time.now < boostUntilMs;
   playerSprite.setVelocityY(boosted ? -840 : -760);
   canDoubleJump = true;
+  platform.setData('springCooldownUntil', now + 170);
   setStatus('Federplattform!', 700);
 }
 
@@ -2479,7 +2489,7 @@ function getLevelConfig(level) {
   if (level === 1) {
     return {
       platforms: [
-        [350, 520], [550, 430], { x: 760, y: 350, type: 'spring' }, [1020, 460], { x: 1250, y: 390, type: 'moving', range: 95, speed: 70 },
+        [350, 520], [550, 430], { x: 760, y: GROUND_SPRING_Y, type: 'spring' }, [1020, 460], { x: 1250, y: 390, type: 'moving', range: 95, speed: 70 },
         [1480, 300], { x: 1740, y: 430, type: 'crumbly' }, [1980, 360], [2210, 280], [2420, 430],
       ],
       mice: [
@@ -2492,7 +2502,7 @@ function getLevelConfig(level) {
         { x: 1860, y: WORLD_HEIGHT - 90, minX: 1760, maxX: 2000, speed: 80 },
         { x: 2290, y: 240, minX: 2140, maxX: 2430, speed: 65 },
       ],
-      catnips: [[760, 310], [1740, 390]],
+      catnips: [[760, GROUND_PICKUP_Y], [1740, GROUND_PICKUP_Y]],
       hiddenLives: [[1480, 300]],
     };
   }
@@ -2500,7 +2510,7 @@ function getLevelConfig(level) {
   if (level === 2) {
     return {
       platforms: [
-        [320, 500], [500, 395], { x: 680, y: 305, type: 'spring' }, [900, 430], { x: 1120, y: 315, type: 'moving_v', range: 92, speed: 76 },
+        [320, 500], [500, 395], { x: 680, y: GROUND_SPRING_Y, type: 'spring' }, [900, 430], { x: 1120, y: 315, type: 'moving_v', range: 92, speed: 76 },
         [1350, 250], { x: 1580, y: 360, type: 'crumbly' }, [1810, 275], [2050, 205], [2270, 300], [2450, 410],
       ],
       mice: [
@@ -2514,7 +2524,7 @@ function getLevelConfig(level) {
         { x: 1710, y: WORLD_HEIGHT - 90, minX: 1540, maxX: 1940, speed: 105 },
         { x: 2240, y: 370, minX: 2140, maxX: 2350, speed: 92, type: 'hunter' },
       ],
-      catnips: [[880, 390], [1600, 320], [2320, 260]],
+      catnips: [[880, GROUND_PICKUP_Y], [1600, GROUND_PICKUP_Y], [2320, GROUND_PICKUP_Y]],
       hiddenLives: [[2050, 205]],
     };
   }
@@ -2601,7 +2611,7 @@ function getGeneratedLevelConfig(level) {
       const roll = rand01(seed + 201, i);
       if (roll > 0.94) type = 'moving_v';
       else if (roll > 0.86) type = 'moving';
-      else if (roll > 0.82) type = 'spring';
+      else if (roll > 0.96) type = 'spring';
       else if (roll < 0.12) type = 'crumbly';
     }
     let movingRange = Math.round(80 + rand01(seed + 211, i) * 90);
@@ -2613,6 +2623,13 @@ function getGeneratedLevelConfig(level) {
     }
     const movingSpeed = Math.round(60 + rand01(seed + 223, i) * 55);
     platforms.push({ x, y, type, range: movingRange, speed: movingSpeed });
+  }
+
+  // Add reliable spring pads on the ground for vertical access.
+  const groundSpringCount = progress > 0.55 ? 2 : 1;
+  for (let i = 0; i < groundSpringCount; i++) {
+    const x = Math.round(620 + i * 930 + rand01(seed + 407, i) * 320);
+    platforms.push({ x: clampValue(x, 260, WORLD_WIDTH - 260), y: GROUND_SPRING_Y, type: 'spring' });
   }
 
   const mice = [];
@@ -2644,8 +2661,8 @@ function getGeneratedLevelConfig(level) {
   const catnips = [];
   const catnipCount = 2 + Math.floor(progress * 4);
   for (let i = 0; i < catnipCount; i++) {
-    const p = platforms[(i * 3 + level) % platforms.length];
-    catnips.push([p.x, p.y - 40]);
+    const x = Math.round(300 + i * ((WORLD_WIDTH - 600) / Math.max(1, catnipCount - 1)) + (rand01(seed + 509, i) - 0.5) * 180);
+    catnips.push([clampValue(x, 220, WORLD_WIDTH - 220), GROUND_PICKUP_Y]);
   }
 
   const hiddenLives = [];

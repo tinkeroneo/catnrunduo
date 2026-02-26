@@ -55,6 +55,7 @@ const HUNTER_TINT_IDLE = 0xffd27a;
 const HUNTER_TINT_CHASE = 0xff9a52;
 const BOSS_PHASE2_SPEED_MUL = 1.34;
 const BOSS_PHASE2_TINT = 0xff7f6e;
+const BOSS_GROUND_Y = WORLD_HEIGHT - 104;
 const SPRING_JUMP_VELOCITY_EARLY = -800;
 const SPRING_JUMP_VELOCITY_LATE = -710;
 const SPRING_BOOST_EXTRA = -70;
@@ -952,7 +953,7 @@ function create() {
   });
 
   if (levelConfig.boss) {
-    boss = enemies.create(levelConfig.boss.x, levelConfig.boss.y, useSheetDog ? enemyTextureKey : 'boss');
+    boss = enemies.create(levelConfig.boss.x, BOSS_GROUND_Y, useSheetDog ? enemyTextureKey : 'boss');
     if (useSheetDog) boss.setScale(DOG_BOSS_SCALE);
     if (useSheetDog) boss.setFrame(0);
     if (useSheetDog) {
@@ -1416,6 +1417,11 @@ function updateEnemies() {
         speed = Math.round(baseSpeed * HUNTER_CHASE_SPEED_MUL);
         dir = dx >= 0 ? 1 : -1;
       }
+    }
+
+    if (isBoss) {
+      enemy.y = BOSS_GROUND_Y;
+      if (enemy.body) enemy.body.velocity.y = 0;
     }
 
     if (enemy.x <= minX) dir = 1;

@@ -2003,8 +2003,12 @@ function onSpringPlatform(playerSprite, platform) {
 
 function getSpringJumpVelocity(isBoosted) {
   const progress = clampValue((currentLevel - 1) / Math.max(1, MAX_LEVEL - 1), 0, 1);
-  const base = Math.round(SPRING_JUMP_VELOCITY_EARLY + (SPRING_JUMP_VELOCITY_LATE - SPRING_JUMP_VELOCITY_EARLY) * progress);
-  return isBoosted ? base + SPRING_BOOST_EXTRA : base;
+  const levelBase = SPRING_JUMP_VELOCITY_EARLY + (SPRING_JUMP_VELOCITY_LATE - SPRING_JUMP_VELOCITY_EARLY) * progress;
+  const gravityMul = currentLevelModifier?.gravityMul ?? 1;
+  // In low gravity levels we slightly reduce spring force to keep jump arcs readable.
+  const gravityAdjust = 1 + (gravityMul - 1) * 0.55;
+  const adjusted = Math.round(levelBase * gravityAdjust);
+  return isBoosted ? adjusted + SPRING_BOOST_EXTRA : adjusted;
 }
 
 function onCrumblyPlatform(playerSprite, platform) {

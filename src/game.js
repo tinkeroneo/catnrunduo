@@ -1076,7 +1076,7 @@ function create() {
   lifeText.setVisible(false);
 
   timerText = this.add
-    .text(16, 80, 'Boost -  Boss -', {
+    .text(16, 80, `Mod ${currentLevelModifier.label}  Boost -  Boss -`, {
       fontFamily: 'Segoe UI, sans-serif',
       fontSize: '16px',
       color: '#1f2a44',
@@ -2140,7 +2140,9 @@ function update() {
   }
 
   if (!gameWon && !gameOver) {
-    timerText.setText(`Boost ${boostLabel}  Boss ${bossLabel}`);
+    const assistLabel = adaptiveAssistActive ? '  Assist' : '';
+    const focusLabel = adaptivePressureActive ? '  Fokus' : '';
+    timerText.setText(`Mod ${currentLevelModifier.label}${assistLabel}${focusLabel}  Boost ${boostLabel}  Boss ${bossLabel}`);
   }
 
   if (hitCooldown > 0) {

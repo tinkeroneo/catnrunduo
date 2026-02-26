@@ -55,6 +55,9 @@ const HUNTER_TINT_IDLE = 0xffd27a;
 const HUNTER_TINT_CHASE = 0xff9a52;
 const BOSS_PHASE2_SPEED_MUL = 1.34;
 const BOSS_PHASE2_TINT = 0xff7f6e;
+const SPRING_JUMP_VELOCITY_EARLY = -800;
+const SPRING_JUMP_VELOCITY_LATE = -710;
+const SPRING_BOOST_EXTRA = -70;
 const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
@@ -1992,10 +1995,16 @@ function onSpringPlatform(playerSprite, platform) {
   const fromAbove = touchingDown && comingFromAbove && horizontalOverlap;
   if (!fromAbove) return;
   const boosted = sceneRef.time.now < boostUntilMs;
-  playerSprite.setVelocityY(boosted ? -840 : -760);
+  playerSprite.setVelocityY(getSpringJumpVelocity(boosted));
   canDoubleJump = true;
   platform.setData('springCooldownUntil', now + 170);
   setStatus('Federplattform!', 700);
+}
+
+function getSpringJumpVelocity(isBoosted) {
+  const progress = clampValue((currentLevel - 1) / Math.max(1, MAX_LEVEL - 1), 0, 1);
+  const base = Math.round(SPRING_JUMP_VELOCITY_EARLY + (SPRING_JUMP_VELOCITY_LATE - SPRING_JUMP_VELOCITY_EARLY) * progress);
+  return isBoosted ? base + SPRING_BOOST_EXTRA : base;
 }
 
 function onCrumblyPlatform(playerSprite, platform) {

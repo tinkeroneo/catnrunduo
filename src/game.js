@@ -283,6 +283,7 @@ let sfxAudioCtx = null;
 let sfxUnlockBound = false;
 let audioLayerPlayers = [];
 let audioLayersUnlockBound = false;
+let audioLayersUnlockHandler = null;
 let useSheetCat = false;
 let useCleanSheetCat = false;
 let catRunAnimKey = 'cat_run';
@@ -2827,44 +2828,73 @@ function requestMobileFullscreen() {
 }
 
 function initAudioLayers() {
-  audioLayerPlayers.forEach((audio) => {
+  const desiredEntries = getConfiguredAudioLayers()
+    .filter(([, layer]) => !!layer && !!layer.path && shouldEnableAudioLayer(layer));
+  const desiredMap = new Map(desiredEntries);
+
+  // Remove players that are no longer configured or have changed source.
+  audioLayerPlayers = audioLayerPlayers.filter((audio) => {
+    const name = audio.dataset.layerName;
+    const layer = desiredMap.get(name);
+    const expectedPath = layer?.path || '';
+    const samePath = audio.dataset.layerPath === expectedPath;
+    if (layer && samePath) return true;
     try {
       audio.pause();
-      audio.currentTime = 0;
     } catch {
-      // Ignore playback teardown issues.
+      // Ignore teardown issues.
     }
+    return false;
   });
-  audioLayerPlayers = [];
 
-  const layerEntries = getConfiguredAudioLayers();
-  layerEntries.forEach(([name, layer]) => {
-    if (!layer || !layer.path || !shouldEnableAudioLayer(layer)) return;
+  // Create players only for truly missing layers.
+  desiredEntries.forEach(([name, layer]) => {
+    const existing = audioLayerPlayers.find((audio) => audio.dataset.layerName === name);
+    if (existing) {
+      existing.loop = layer.loop !== false;
+      existing.volume = clampValue(Number(layer.volume ?? 0.25), 0, 1);
+      return;
+    }
     const audio = new Audio(layer.path);
     audio.loop = layer.loop !== false;
     audio.volume = clampValue(Number(layer.volume ?? 0.25), 0, 1);
     audio.preload = 'auto';
     audio.dataset.layerName = name;
+    audio.dataset.layerPath = layer.path;
     audioLayerPlayers.push(audio);
   });
 
+  // If nothing active, clear unlock listeners.
+  if (audioLayerPlayers.length === 0) {
+    if (audioLayersUnlockHandler) {
+      window.removeEventListener('pointerdown', audioLayersUnlockHandler);
+      window.removeEventListener('keydown', audioLayersUnlockHandler);
+      window.removeEventListener('touchstart', audioLayersUnlockHandler);
+      audioLayersUnlockHandler = null;
+      audioLayersUnlockBound = false;
+    }
+    return;
+  }
+
+  resumeAudioLayers();
+
   if (audioLayersUnlockBound) return;
   audioLayersUnlockBound = true;
-
-  const unlock = () => {
-    if (audioLayerPlayers.length === 0) return;
+  audioLayersUnlockHandler = () => {
     const playPromises = audioLayerPlayers.map((audio) => audio.play().catch(() => null));
     Promise.all(playPromises).then(() => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-      window.removeEventListener('touchstart', unlock);
+      if (!audioLayersUnlockHandler) return;
+      window.removeEventListener('pointerdown', audioLayersUnlockHandler);
+      window.removeEventListener('keydown', audioLayersUnlockHandler);
+      window.removeEventListener('touchstart', audioLayersUnlockHandler);
+      audioLayersUnlockHandler = null;
       audioLayersUnlockBound = false;
     });
   };
 
-  window.addEventListener('pointerdown', unlock, { passive: true });
-  window.addEventListener('keydown', unlock, { passive: true });
-  window.addEventListener('touchstart', unlock, { passive: true });
+  window.addEventListener('pointerdown', audioLayersUnlockHandler, { passive: true });
+  window.addEventListener('keydown', audioLayersUnlockHandler, { passive: true });
+  window.addEventListener('touchstart', audioLayersUnlockHandler, { passive: true });
 }
 
 function getConfiguredAudioLayers() {

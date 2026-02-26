@@ -1,8 +1,8 @@
-const WORLD_WIDTH = 2600;
+﻿const WORLD_WIDTH = 2600;
 const WORLD_HEIGHT = 720;
 const BASE_GRAVITY_Y = 1200;
 const GROUND_PICKUP_Y = WORLD_HEIGHT - 88;
-const GROUND_SPRING_Y = WORLD_HEIGHT - 84;
+const GROUND_SPRING_Y = WORLD_HEIGHT - 64;
 const MAX_LEVEL = 52;
 const MOVING_V_MIN_Y = 180;
 const MOVING_V_MAX_Y = WORLD_HEIGHT - 170;
@@ -68,17 +68,22 @@ const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new'];
 const URL_QUERY = new URLSearchParams(window.location.search);
 const DEBUG_HITBOXES_ENABLED = URL_QUERY.get('debug') === '1';
 const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
+const FORCE_BOSS_TEST = URL_QUERY.get('boss') === '1';
 const BGM_QUERY_MODE = (URL_QUERY.get('bgm') || 'primary').toLowerCase();
 const COLLIDER_PROFILES = {
   playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
   playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
   enemySheet: { type: 'fixed', width: 18, height: 12, offsetX: 60, offsetY: 298 },
   enemyFallback: { type: 'ratio', width: 0.75, height: 0.9, offsetX: 0.13, offsetY: 0.06 },
-  bossSheet: { type: 'fixed', width: 26, height: 16, offsetX: 9, offsetY: 24 },
+  // Boss uses a scaled dog sheet; use ratios to keep the hitbox aligned.
+  bossSheet: { type: 'ratio', width: 0.62, height: 0.45, offsetX: 0.19, offsetY: 0.44 },
   bossFallback: { type: 'ratio', width: 0.78, height: 0.9, offsetX: 0.11, offsetY: 0.05 },
   mouseSheet: { type: 'fixed', width: 16, height: 10, offsetX: 7, offsetY: 20 },
   mouseFallback: { type: 'ratio', width: 0.8, height: 0.65, offsetX: 0.1, offsetY: 0.25 },
 };
+const SPRING_SCALE_X = 1.4;
+const SPRING_SCALE_Y = 0.8;
+const SPRING_GROUND_SCALE_Y = 0.42;
 const DEFAULT_ASSET_MANIFEST = {
   cat: {
     spritesheet: {
@@ -148,8 +153,11 @@ const MOBILE_BUTTON_ICONS = {
   restart: '↻',
   pause: '⏸',
   play: '▶',
-  touchEasy: '◎',
+  touchEasy: '◕',
   touchPrecise: '◉',
+  audioPrimary: '♪',
+  audioAlt: '♫',
+  audioOff: '✕',
 };
 let assetManifest = DEFAULT_ASSET_MANIFEST;
 const THEMES = [
@@ -278,10 +286,12 @@ let statusFadeStartAt = 0;
 let restartKey;
 let pauseKey;
 let debugKey;
+let audioKey;
 let pauseText;
 let restartTouchButton;
 let pauseTouchButton;
 let touchProfileButton;
+let audioToggleButton;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -290,6 +300,7 @@ let sfxUnlockBound = false;
 let audioLayerPlayers = [];
 let audioLayersUnlockBound = false;
 let audioLayersUnlockHandler = null;
+let audioMode = BGM_QUERY_MODE;
 let useSheetCat = false;
 let useCleanSheetCat = false;
 let catRunAnimKey = 'cat_run';
@@ -786,7 +797,10 @@ function create() {
   levelConfig.platforms.forEach((entry) => {
     const p = normalizePlatformEntry(entry);
     if (p.type === 'spring') {
-      const spring = springPlatforms.create(p.x, p.y, 'platform_spring').setScale(1.4, 0.8).refreshBody();
+      const isGroundSpring = p.y >= GROUND_SPRING_Y - 8;
+      const springScaleY = isGroundSpring ? SPRING_GROUND_SCALE_Y : SPRING_SCALE_Y;
+      const spring = springPlatforms.create(p.x, p.y, 'platform_spring').setScale(SPRING_SCALE_X, springScaleY).refreshBody();
+      spring.setData('isGroundSpring', isGroundSpring);
       spring.setData('springCooldownUntil', 0);
       return;
     }
@@ -1008,7 +1022,7 @@ function create() {
   this.physics.add.collider(player, platforms, () => {
     if (player.body.blocked.down) canDoubleJump = true;
   });
-  this.physics.add.collider(player, springPlatforms, onSpringPlatform, null, this);
+  this.physics.add.overlap(player, springPlatforms, onSpringPlatform, null, this);
   this.physics.add.collider(player, crumblyPlatforms, onCrumblyPlatform, null, this);
   this.physics.add.collider(player, movingPlatforms, onMovingPlatform, null, this);
   this.physics.add.collider(player, hiddenLifeBlocks, hitHiddenLifeBlock, null, this);
@@ -1020,7 +1034,6 @@ function create() {
   this.physics.add.overlap(player, catnips, collectCatnip, null, this);
   this.physics.add.overlap(player, lifePickups, collectLifePickup, null, this);
   this.physics.add.collider(enemies, platforms);
-  this.physics.add.collider(enemies, springPlatforms);
   this.physics.add.collider(enemies, crumblyPlatforms);
   this.physics.add.collider(enemies, movingPlatforms);
 
@@ -1036,6 +1049,7 @@ function create() {
   restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
   pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
   debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F2);
+  audioKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
   setupTouchControls(this);
   bindMobileViewportSync(this);
   syncMobileViewport(this);
@@ -1157,6 +1171,9 @@ function create() {
     pauseTouchButton = createMobileRoundButton(this, MOBILE_BUTTON_ICONS.pause, () => {
       togglePause();
     });
+    audioToggleButton = createMobileRoundButton(this, getAudioIconForMode(audioMode), () => {
+      toggleAudioMode(this);
+    });
     touchProfileButton = createMobileRoundButton(
       this,
       touchProfileMode === 'precise' ? MOBILE_BUTTON_ICONS.touchPrecise : MOBILE_BUTTON_ICONS.touchEasy,
@@ -1171,10 +1188,12 @@ function create() {
     restartTouchButton = null;
     pauseTouchButton = null;
     touchProfileButton = null;
+    audioToggleButton = null;
   }
 
   initSfx(this);
   initAudioLayers();
+  setMobileButtonIcon(audioToggleButton, getAudioIconForMode(audioMode));
   if (FORCE_TEST_LEVEL) {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
   } else {
@@ -1995,8 +2014,11 @@ function onSpringPlatform(playerSprite, platform) {
   const now = sceneRef.time.now;
   if ((platform.getData('springCooldownUntil') || 0) > now) return;
   const body = playerSprite.body;
+  const isGroundSpring = !!platform.getData('isGroundSpring');
   const touchingDown = body.touching.down || body.blocked.down;
-  const comingFromAbove = body.velocity.y >= -140 && body.bottom <= platform.body.top + 26;
+  const topSlack = isGroundSpring ? 14 : 26;
+  const minVy = isGroundSpring ? -80 : -140;
+  const comingFromAbove = body.velocity.y >= minVy && body.bottom <= platform.body.top + topSlack;
   const horizontalOverlap = body.right >= platform.body.left + 3 && body.left <= platform.body.right - 3;
   const fromAbove = touchingDown && comingFromAbove && horizontalOverlap;
   if (!fromAbove) return;
@@ -2110,6 +2132,10 @@ function update() {
 
   if (Phaser.Input.Keyboard.JustDown(pauseKey) && !gameWon && !gameOver) {
     togglePause();
+  }
+
+  if (Phaser.Input.Keyboard.JustDown(audioKey)) {
+    toggleAudioMode(sceneRef);
   }
 
   if (gamePaused) {
@@ -2502,13 +2528,28 @@ function getVerticalTravelBounds(baseY, range) {
   return { minY, maxY };
 }
 
-function getLevelConfig(level) {
-  if (FORCE_TEST_LEVEL) {
-    return getTestLevelConfig();
-  }
+function applyBossOverride(cfg, level) {
+  if (!cfg || !FORCE_BOSS_TEST) return cfg;
+  if (cfg.boss) return cfg;
+  const progress = Math.min(1, Math.max(0, (level - 3) / (MAX_LEVEL - 3)));
+  const hp = 4 + Math.floor(progress * 3);
+  cfg.boss = {
+    x: 2460,
+    y: WORLD_HEIGHT - 92,
+    minX: 2320,
+    maxX: 2520,
+    speed: 90 + Math.floor(progress * 20),
+    hp,
+  };
+  return cfg;
+}
 
-  if (level === 1) {
-    return {
+function getLevelConfig(level) {
+  let cfg = null;
+  if (FORCE_TEST_LEVEL) {
+    cfg = getTestLevelConfig();
+  } else if (level === 1) {
+    cfg = {
       platforms: [
         [350, 520], [550, 430], { x: 760, y: GROUND_SPRING_Y, type: 'spring' }, [1020, 460], { x: 1250, y: 390, type: 'moving', range: 95, speed: 70 },
         [1480, 300], { x: 1740, y: 430, type: 'crumbly' }, [1980, 360], [2210, 280], [2420, 430],
@@ -2526,10 +2567,8 @@ function getLevelConfig(level) {
       catnips: [[760, GROUND_PICKUP_Y], [1740, GROUND_PICKUP_Y]],
       hiddenLives: [[1480, 300]],
     };
-  }
-
-  if (level === 2) {
-    return {
+  } else if (level === 2) {
+    cfg = {
       platforms: [
         [320, 500], [500, 395], { x: 680, y: GROUND_SPRING_Y, type: 'spring' }, [900, 430], { x: 1120, y: 315, type: 'moving_v', range: 92, speed: 76 },
         [1350, 250], { x: 1580, y: 360, type: 'crumbly' }, [1810, 275], [2050, 205], [2270, 300], [2450, 410],
@@ -2548,9 +2587,10 @@ function getLevelConfig(level) {
       catnips: [[880, GROUND_PICKUP_Y], [1600, GROUND_PICKUP_Y], [2320, GROUND_PICKUP_Y]],
       hiddenLives: [[2050, 205]],
     };
+  } else {
+    cfg = getGeneratedLevelConfig(level);
   }
-
-  return getGeneratedLevelConfig(level);
+  return applyBossOverride(cfg, level);
 }
 
 function getLevelModifier(level) {
@@ -2866,8 +2906,9 @@ function requestMobileFullscreen() {
 }
 
 function initAudioLayers() {
+  syncAudioModeWithManifest();
   const desiredEntries = getConfiguredAudioLayers()
-    .filter(([, layer]) => !!layer && !!layer.path && shouldEnableAudioLayer(layer));
+    .filter(([name, layer]) => !!layer && !!layer.path && shouldEnableAudioLayer(name, layer));
   const desiredMap = new Map(desiredEntries);
 
   // Remove players that are no longer configured or have changed source.
@@ -2943,11 +2984,70 @@ function getConfiguredAudioLayers() {
   return [];
 }
 
-function shouldEnableAudioLayer(layer) {
+function shouldEnableAudioLayer(name, layer) {
   if (!layer || layer.enabled === false) return false;
-  const mode = String(layer.mode || '').toLowerCase();
-  if (!mode) return true;
-  return mode === BGM_QUERY_MODE;
+  if (audioMode === 'off') return false;
+  return name === audioMode;
+}
+
+function getAvailableAudioLayers() {
+  const layers = assetManifest?.audio?.layers;
+  if (!layers || typeof layers !== 'object') return [];
+  return Object.entries(layers)
+    .filter(([, layer]) => !!layer && layer.enabled !== false && !!layer.path)
+    .map(([name, layer]) => ({ name, layer }));
+}
+
+function syncAudioModeWithManifest() {
+  const layers = getAvailableAudioLayers();
+  if (layers.length === 0) {
+    audioMode = 'off';
+    return;
+  }
+  if (audioMode === 'off') return;
+  const names = layers.map((entry) => entry.name);
+  if (names.includes(audioMode)) return;
+  const byMode = layers.find((entry) => String(entry.layer.mode || '').toLowerCase() === audioMode);
+  audioMode = byMode ? byMode.name : names[0];
+}
+
+function getAudioIconForMode(mode) {
+  if (mode === 'off') return MOBILE_BUTTON_ICONS.audioOff;
+  const layers = getAvailableAudioLayers();
+  const entry = layers.find((item) => item.name === mode)
+    || layers.find((item) => String(item.layer.mode || '').toLowerCase() === mode);
+  const layerMode = String(entry?.layer?.mode || '').toLowerCase();
+  if (layerMode === 'alt') return MOBILE_BUTTON_ICONS.audioAlt;
+  if (layerMode === 'primary') return MOBILE_BUTTON_ICONS.audioPrimary;
+  return MOBILE_BUTTON_ICONS.audioPrimary;
+}
+
+function setAudioMode(mode, scene) {
+  audioMode = mode;
+  syncAudioModeWithManifest();
+  initAudioLayers();
+  setMobileButtonIcon(audioToggleButton, getAudioIconForMode(audioMode));
+  if (scene) {
+    const label = audioMode === 'off' ? 'Audio aus' : `Audio: ${audioMode}`;
+    setStatus(label, 1200);
+  }
+}
+
+function toggleAudioMode(scene) {
+  const layers = getAvailableAudioLayers();
+  if (layers.length === 0) {
+    setAudioMode('off', scene);
+    return;
+  }
+  const names = layers.map((entry) => entry.name);
+  if (audioMode === 'off') {
+    setAudioMode(names[0], scene);
+    return;
+  }
+  const current = names.includes(audioMode) ? audioMode : names[0];
+  const idx = names.indexOf(current);
+  const next = idx >= names.length - 1 ? 'off' : names[idx + 1];
+  setAudioMode(next, scene);
 }
 
 function pauseAudioLayers() {
@@ -3148,7 +3248,7 @@ function layoutMobileActionButtons(scene) {
   const top = getMobileTopInsetPx();
   const gap = 10;
   const y = top + Math.round(size * 0.5);
-  const buttonsRightToLeft = [touchProfileButton, pauseTouchButton, restartTouchButton].filter(Boolean);
+  const buttonsRightToLeft = [touchProfileButton, audioToggleButton, pauseTouchButton, restartTouchButton].filter(Boolean);
   buttonsRightToLeft.forEach((btn, idx) => {
     const x = rightX - idx * (size + gap);
     btn.setPosition(x, y);
@@ -3233,3 +3333,7 @@ function bootstrapGame() {
 }
 
 bootstrapGame();
+
+
+
+

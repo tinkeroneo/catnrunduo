@@ -35,7 +35,7 @@
         "mode": "primary"
       },
       "bgm_alt": {
-        "path": "assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3",
+        "path": "assets/audio/Schwebende Nachtflächen.mp3",
         "volume": 0.28,
         "loop": true,
         "enabled": true,

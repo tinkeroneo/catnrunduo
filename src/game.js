@@ -21,7 +21,6 @@ const MOUSE_TARGET_FRAME_W = 256;
 const MOUSE_TARGET_FRAME_H = 256;
 const MOUSE_BASELINE_Y = 220;
 const ENABLE_MOUSE_DOG_SHEETS = true;
-const DOG_FRAME_COUNT = 12;
 const DOG_GRID_COLS = 3;
 const DOG_GRID_ROWS = 4;
 const DOG_FRAME_WIDTH = 384;
@@ -118,7 +117,7 @@ const DEFAULT_ASSET_MANIFEST = {
         mode: 'primary',
       },
       bgm_alt: {
-        path: 'assets/audio/musely-Moonlit Paws, Whispering Leaves.mp3',
+        path: 'assets/audio/Schwebende Nachtflächen.mp3',
         volume: 0.28,
         loop: true,
         enabled: true,
@@ -228,8 +227,6 @@ const config = {
   },
 };
 
-let game = null;
-
 let player;
 let cursors;
 let wasd;
@@ -292,7 +289,6 @@ let pauseKey;
 let debugKey;
 let audioKey;
 let pauseText;
-let restartTouchButton;
 let pauseTouchButton;
 let touchProfileButton;
 let audioToggleButton;
@@ -1176,7 +1172,7 @@ function create() {
 
   touchProfileMode = resolveInitialTouchProfile();
   touchControls.tuning = resolveTouchTuning(this);
-  restartTouchButton = createDomActionButton('restartControl', MOBILE_BUTTON_ICONS.restart, () => {
+  createDomActionButton('restartControl', MOBILE_BUTTON_ICONS.restart, () => {
     restartRun();
   });
   pauseTouchButton = createDomActionButton('pauseControl', MOBILE_BUTTON_ICONS.pause, () => {
@@ -2889,7 +2885,7 @@ function initAudioLayers() {
     const audio = new Audio(layer.path);
     audio.loop = layer.loop !== false;
     audio.volume = clampValue(Number(layer.volume ?? 0.25), 0, 1);
-    audio.preload = 'auto';
+    audio.preload = 'none';
     audio.dataset.layerName = name;
     audio.dataset.layerPath = layer.path;
     audioLayerPlayers.push(audio);
@@ -2906,8 +2902,6 @@ function initAudioLayers() {
     }
     return;
   }
-
-  resumeAudioLayers();
 
   if (audioLayersUnlockBound) return;
   audioLayersUnlockBound = true;
@@ -3012,12 +3006,14 @@ function toggleAudioMode(scene) {
   const names = layers.map((entry) => entry.name);
   if (audioMode === 'off') {
     setAudioMode(names[0], scene);
+    resumeAudioLayers();
     return;
   }
   const current = names.includes(audioMode) ? audioMode : names[0];
   const idx = names.indexOf(current);
   const next = idx >= names.length - 1 ? 'off' : names[idx + 1];
   setAudioMode(next, scene);
+  if (next !== 'off') resumeAudioLayers();
 }
 
 function pauseAudioLayers() {
@@ -3439,7 +3435,7 @@ function bootstrapGame() {
       assetManifest = DEFAULT_ASSET_MANIFEST;
     })
     .finally(() => {
-      game = new Phaser.Game(config);
+      new Phaser.Game(config);
     });
 }
 

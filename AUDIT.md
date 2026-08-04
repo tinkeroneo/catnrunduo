@@ -5,7 +5,7 @@ Geprüfter Branch: `main`
 
 ## Kurzurteil
 
-`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression und Einstieg sind inzwischen abgesichert; für eine belastbare Veröffentlichung fehlen vor allem eine schlankere Auslieferung, umfassendere Qualitätsprüfungen und eine wartbarere Modulstruktur.
+`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind inzwischen abgesichert; vor einem öffentlichen Release bleiben vor allem weitere Modularisierung sowie manuelle Langstrecken-, Geräte-, Browser- und Rechteprüfungen.
 
 Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wichtigste bestätigte Logikfehler lag im Levelgenerator: Der Zweig für zufällige Spring-Plattformen war unerreichbar. Dieser Fehler ist im ersten Maßnahmenblock behoben und automatisiert abgesichert worden.
 
@@ -15,15 +15,16 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | teilweise erledigt | `package.json`, einheitlicher `npm run check`, Syntaxprüfung und 8 Tests ergänzt; Lint und CI fehlen noch |
+| CAT-03 | erledigt | ESLint ohne Warnungen, 8 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
 | CAT-05 | begonnen | Levelgenerator, Persistenz und HUD-Texte als reine, browserunabhängig testbare Module aus `game.js` gelöst |
 | CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
-| CAT-04, CAT-12 | offen | Asset-/Release-Pipeline sowie Betriebs- und Entwicklerdokumentation fehlen |
+| CAT-04 | erledigt | manifestgesteuerter 15,5-MB-Release schließt rund 40 MB Quellen/Altassets aus; Musik lädt erst nach Interaktion |
+| CAT-12 | erledigt | README, Asset-Inventar, Release-Checkliste, lokaler Server und CI ergänzt |
 
 ## Aktueller Aufbau
 
-- Statische Webanwendung ohne Buildschritt; ein minimales Paketmanifest dient ausschließlich den Qualitätsprüfungen.
+- Statische Webanwendung mit manifestgesteuertem Allowlist-Build und 16-MiB-Transferbudget.
 - Phaser 3.90.0 liegt vendort als `vendor/phaser.min.js` im Repository.
 - Fast die gesamte Spiellogik liegt weiterhin in `src/game.js`; Levelgenerator, Persistenz und HUD-Texte sind als reine Module ausgelagert.
 - Level 1 und 2 sind handgebaut; Level 3 bis 52 werden deterministisch generiert.
@@ -31,7 +32,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 - Desktop: Pfeiltasten oder A/D, Sprung über Leertaste/W/Pfeil hoch, Pause über P, Neustart über R, Audio über M.
 - Mobile: Ziehen zum Laufen, Wischen zum Springen sowie semantische DOM-Schaltflächen.
 - Persistiert werden Laufstand, Bestzeit, Touch-Profil, Audioauswahl und der Onboarding-Status; fehlerhafter oder blockierter Storage hat sichere Fallbacks.
-- Die Veröffentlichung ist als statische Seite mit eigener Domain vorbereitet (`CNAME`).
+- Die Veröffentlichung ist als statische Seite mit eigener Domain vorbereitet (`CNAME`); CI prüft Qualität und Release-Artefakt.
 
 ## Durchgeführte Prüfungen
 
@@ -39,13 +40,16 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|
 | Git-Status und Upstream | sauber, `main` folgt `origin/main` |
 | Qualitätsgate | `npm run check` erfolgreich |
+| Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
 | Modul-/Vertragstests | 8/8 erfolgreich; Generator, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
-| Lint/CI | noch nicht vorhanden |
+| Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
+| Release-Build | 16 Runtime-Dateien, 15.507.177 Bytes bei 16-MiB-Budget |
+| CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build vorhanden |
 
 ## Befunde
 
@@ -69,19 +73,19 @@ Umsetzung: Nach jedem abgeschlossenen Level wird ein validierter Snapshot gespei
 
 Akzeptanz: erfüllt und mit Storage-/UI-Vertragstests abgesichert.
 
-#### CAT-03 · teilweise erledigt: Automatisierte Absicherung
+#### CAT-03 · erledigt: Automatisierte Absicherung
 
 Zu Auditbeginn gab es weder Paketmanifest noch Test-, Lint- oder CI-Konfiguration. Generator, Challenge-Auswertung, Progression, Persistenz und Restart-/Pause-Zustände waren vollständig ungesichert.
 
-Umsetzung: Minimales Node-Tooling, Syntaxprüfung und Generator-Unit-Tests sind vorhanden. Der aktuelle Browserstart wurde erneut manuell automatisiert geprüft. Ein dauerhaftes Browser-Smoke-Testpaket, Lint und CI bleiben offen.
+Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Acht Node-Tests sichern Generator, Persistenz, Neustart, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
 
 Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests und einen Start-/Input-/Restart-Smoke-Test; CI führt denselben Befehl aus.
 
-#### CAT-04: Zu große und teilweise ungenutzte Assets
+#### CAT-04 · erledigt: Zu große und teilweise ungenutzte Assets
 
 Das Projekt umfasst rund 56 MB. Allein Audio belegt 44,06 MiB; 30,32 MiB davon sind im aktuellen Manifest und Fallback nicht referenziert. Die potenziell verwendeten Audiodateien belegen weitere 13,74 MiB. Zusätzlich liegen bearbeitbare `.piskel`-Quellen im auszuliefernden Baum.
 
-Maßnahme: Quell- und Laufzeitassets trennen, ungenutzte Dateien aus dem Deployment ausschließen und Musik für Webauslieferung komprimieren beziehungsweise lazy laden.
+Umsetzung: `npm run build` kopiert ausschließlich Runtime-Dateien und die in `assets-manifest.json` referenzierten Assets. Das Ergebnis enthält 16 Dateien mit 15.507.177 Bytes statt des rund 56-MB-Quellbaums und bricht oberhalb von 16 MiB ab. Nur die aktive Musikschicht wird mit `preload="none"` angelegt und erst infolge einer Nutzergeste abgespielt. Eine weitere Audiokompression bleibt ein sinnvoller späterer Optimierungsschritt.
 
 Akzeptanz: Definiertes Transferbudget für den Erststart; keine unreferenzierten Dateien im Deploy-Artefakt; Audio lädt erst nach Wahl beziehungsweise Nutzerinteraktion.
 
@@ -139,11 +143,11 @@ Maßnahme: Audioeinstellung robust in `localStorage` speichern und bei nicht ver
 
 Umsetzung: Der aktive Audiomodus wird gespeichert, beim Start ohne Query-Override wiederhergestellt und bei blockiertem Storage sicher auf `primary` zurückgesetzt.
 
-#### CAT-12: Betriebs- und Entwicklerdokumentation fehlt
+#### CAT-12 · erledigt: Betriebs- und Entwicklerdokumentation fehlte
 
 Es gibt kein README mit Start, Steuerung, Debug-Parametern, Asset-Pipeline, Deployment oder Lizenzhinweisen.
 
-Maßnahme: README und Asset-Lizenzinventar ergänzen; lokale Startanweisung und unterstützte Browser festhalten.
+Umsetzung: README dokumentiert Start, Steuerung, Query-Parameter, Architektur und Releasepfad. `docs/ASSETS.md` macht fehlende Rechtebelege explizit; `docs/RELEASE.md` trennt automatische und manuelle Abnahme. Ein lokaler Null-Abhängigkeiten-Server und CI schaffen reproduzierbare Abläufe.
 
 ## Perspektiven
 
@@ -151,14 +155,15 @@ Maßnahme: README und Asset-Lizenzinventar ergänzen; lokale Startanweisung und 
 - UX: Kern, Fortsetzen und Einstieg sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen noch echte Durchlauftests.
 - UI: Pixelstil und Szenen sind konsistent, Informationshierarchie und Desktop-Flächennutzung benötigen Überarbeitung.
 - Anwender: Desktop-Steuerung ist sichtbar und verständlich; Mobileinstieg und 52-Level-Commitment sind die größten Hürden.
-- Betrieb: Statische Auslieferung ist einfach, doch Assetgewicht, fehlende Qualitätsgates und fehlende Reproduzierbarkeit verhindern verlässliche Releases.
+- Betrieb: Allowlist-Build, Größenbudget, CI, Browser-Smoke und Release-Dokumentation schaffen einen reproduzierbaren Pfad; Rechte- und Langstreckenprüfung bleiben manuell.
 
-## Empfohlene Abarbeitung
+## Verbleibende Abarbeitung
 
-1. Asset-Pipeline bereinigen, ungenutzte 30,32 MiB ausschließen und ein Transferbudget durchsetzen (`CAT-04`).
-2. Qualitätsgate um Lint, Progressions-/Persistenztests, dauerhaften Browser-Smoke-Test und CI ergänzen (`CAT-03`).
-3. `game.js` entlang getesteter Grenzen schrittweise modularisieren (`CAT-05`).
-4. README, Lizenzinventar und Release-Checkliste abschließen (`CAT-12`).
+1. `game.js` entlang getesteter Grenzen weiter modularisieren (`CAT-05`), bevorzugt Progression/Challenges und Audio.
+2. Beide Musikdateien für Webauslieferung neu encodieren und das 16-MiB-Budget anschließend deutlich senken.
+3. Vollständigen 52-Level-Lauf, physisches Touchgerät, Screenreader sowie Firefox/Safari manuell prüfen.
+4. Urheber, Lizenzen und Freigaben der ausgelieferten Sprites, Musik, Phaser-Datei und des Favicons belegen.
+5. Den ersten CI-Lauf auf GitHub kontrollieren und anschließend ausschließlich `dist/` deployen.
 
 ## Browser-Nachweise
 

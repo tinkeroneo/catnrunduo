@@ -69,7 +69,8 @@ const URL_QUERY = new URLSearchParams(window.location.search);
 const DEBUG_HITBOXES_ENABLED = URL_QUERY.get('debug') === '1';
 const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
 const FORCE_BOSS_TEST = URL_QUERY.get('boss') === '1';
-const BGM_QUERY_MODE = (URL_QUERY.get('bgm') || 'primary').toLowerCase();
+const BGM_QUERY_MODE = URL_QUERY.has('bgm') ? URL_QUERY.get('bgm').toLowerCase() : null;
+const RUN_STORAGE = window.CatRunStorage;
 const COLLIDER_PROFILES = {
   playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
   playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
@@ -259,6 +260,8 @@ let hitCooldown = 0;
 let boostUntilMs = 0;
 let score = 0;
 let runStartMs = 0;
+let restoredRunElapsedMs = null;
+let restartConfirmationUntilMs = 0;
 let bestTimeMs = null;
 let currentLevel = 1;
 let currentTheme = THEMES[0];
@@ -300,7 +303,7 @@ let sfxUnlockBound = false;
 let audioLayerPlayers = [];
 let audioLayersUnlockBound = false;
 let audioLayersUnlockHandler = null;
-let audioMode = BGM_QUERY_MODE;
+let audioMode = resolveInitialAudioMode();
 let useSheetCat = false;
 let useCleanSheetCat = false;
 let catRunAnimKey = 'cat_run';
@@ -734,6 +737,7 @@ function preload() {
 }
 
 function create() {
+  const restoredThisScene = Number.isFinite(restoredRunElapsedMs);
   gameWon = false;
   gameOver = false;
   gamePaused = false;
@@ -741,7 +745,7 @@ function create() {
   boostUntilMs = 0;
   boss = null;
 
-  if (currentLevel === 1) {
+  if (currentLevel === 1 && !restoredThisScene) {
     lives = 3;
     score = 0;
     runStartMs = this.time.now;
@@ -753,6 +757,11 @@ function create() {
     challengeMissStreak = 0;
     adaptiveAssistActive = false;
     adaptivePressureActive = false;
+  }
+
+  if (restoredThisScene) {
+    runStartMs = Math.max(0, this.time.now - restoredRunElapsedMs);
+    restoredRunElapsedMs = null;
   }
 
   respawnX = 100;
@@ -1196,6 +1205,8 @@ function create() {
   setMobileButtonIcon(audioToggleButton, getAudioIconForMode(audioMode));
   if (FORCE_TEST_LEVEL) {
     setStatus('Test-Level aktiv (?testlevel=1).', 1800);
+  } else if (restoredThisScene) {
+    setStatus(`Lauf auf Level ${currentLevel} fortgesetzt. Viel Erfolg!`, 3400);
   } else {
     const assistPart = adaptiveAssistActive ? ' | Assist aktiv' : '';
     const pressurePart = adaptivePressureActive ? ' | Fokus aktiv' : '';
@@ -1305,6 +1316,7 @@ function reachFlag() {
     setCatIdleTexture(player);
     sceneRef.time.delayedCall(700, () => {
       currentLevel += 1;
+      saveRunProgress();
       sceneRef.scene.restart();
     });
     return;
@@ -1326,6 +1338,7 @@ function reachFlag() {
     bestText.setText(`Bestzeit: ${formatMs(bestTimeMs)} (neu)`);
   }
 
+  clearSavedRun();
   setStatus(`Geschafft! Zeit ${formatMs(runTimeMs)}. R fuer Neustart.`, 0);
   player.setVelocity(0, 0);
   player.anims.stop();
@@ -1398,6 +1411,7 @@ function loseLife(message) {
 
   if (lives <= 0) {
     gameOver = true;
+    clearSavedRun();
     player.setVelocity(0, 0);
     player.anims.stop();
     setCatIdleTexture(player);
@@ -2934,9 +2948,27 @@ function getAudioIconForMode(mode) {
   return MOBILE_BUTTON_ICONS.audioPrimary;
 }
 
+function resolveInitialAudioMode() {
+  if (BGM_QUERY_MODE) return BGM_QUERY_MODE;
+  try {
+    return RUN_STORAGE?.loadAudioMode?.(window.localStorage, 'primary') || 'primary';
+  } catch {
+    return 'primary';
+  }
+}
+
+function persistAudioMode(mode) {
+  try {
+    RUN_STORAGE?.saveAudioMode?.(window.localStorage, mode);
+  } catch {
+    // Audio selection remains session-local when storage is unavailable.
+  }
+}
+
 function setAudioMode(mode, scene) {
   audioMode = mode;
   syncAudioModeWithManifest();
+  persistAudioMode(audioMode);
   initAudioLayers();
   setMobileButtonIcon(audioToggleButton, getAudioIconForMode(audioMode));
   if (scene) {
@@ -3018,12 +3050,71 @@ function updateCameraLookAhead() {
   sceneRef.cameras.main.setFollowOffset(Math.round(cameraLookAheadX), 0);
 }
 
+function getRunElapsedMs() {
+  if (!sceneRef?.time) return Math.max(0, Math.floor(restoredRunElapsedMs || 0));
+  return Math.max(0, Math.floor(sceneRef.time.now - runStartMs));
+}
+
+function saveRunProgress() {
+  if (!RUN_STORAGE?.saveRun) return false;
+  try {
+    return RUN_STORAGE.saveRun(window.localStorage, {
+      level: currentLevel,
+      score,
+      lives,
+      totalMiceCollected,
+      nextMouseLifeMilestone,
+      challengeSuccessStreak,
+      challengeMissStreak,
+      elapsedMs: getRunElapsedMs(),
+    }, MAX_LEVEL);
+  } catch {
+    return false;
+  }
+}
+
+function clearSavedRun() {
+  try {
+    RUN_STORAGE?.clearRun?.(window.localStorage);
+  } catch {
+    // A blocked storage backend must not break gameplay.
+  }
+}
+
+function applySavedRun(run) {
+  currentLevel = run.level;
+  score = run.score;
+  lives = run.lives;
+  totalMiceCollected = run.totalMiceCollected;
+  nextMouseLifeMilestone = run.nextMouseLifeMilestone;
+  challengeSuccessStreak = run.challengeSuccessStreak;
+  challengeMissStreak = run.challengeMissStreak;
+  restoredRunElapsedMs = run.elapsedMs;
+}
+
 function restartRun() {
+  const now = Date.now();
+  const shouldConfirm = RUN_STORAGE?.shouldConfirmRestart?.({
+    gameOver,
+    gameWon,
+    level: currentLevel,
+    score,
+  });
+  if (shouldConfirm && now > restartConfirmationUntilMs) {
+    restartConfirmationUntilMs = now + 2500;
+    setStatus('Neustart verwirft den Lauf. Erneut drücken zum Bestätigen.', 2500);
+    return false;
+  }
+
+  restartConfirmationUntilMs = 0;
   if (gamePaused) {
     togglePause(false, true);
   }
+  clearSavedRun();
+  restoredRunElapsedMs = null;
   currentLevel = 1;
   sceneRef.scene.restart();
+  return true;
 }
 
 function togglePause(forceState = null, silent = false) {
@@ -3225,9 +3316,63 @@ function mergeAssetManifest(raw) {
   };
 }
 
+function loadSavedRun() {
+  try {
+    return RUN_STORAGE?.loadRun?.(window.localStorage, MAX_LEVEL) || null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveInitialRunChoice() {
+  if (FORCE_TEST_LEVEL || FORCE_BOSS_TEST) return Promise.resolve();
+  if (URL_QUERY.get('new') === '1') {
+    clearSavedRun();
+    return Promise.resolve();
+  }
+
+  const savedRun = loadSavedRun();
+  if (!savedRun) return Promise.resolve();
+  if (URL_QUERY.get('resume') === '1') {
+    applySavedRun(savedRun);
+    return Promise.resolve();
+  }
+  if (URL_QUERY.get('resume') === '0') {
+    clearSavedRun();
+    return Promise.resolve();
+  }
+
+  const dialog = document.getElementById('resumeDialog');
+  const summary = document.getElementById('resumeSummary');
+  const resumeButton = document.getElementById('resumeRunButton');
+  const newRunButton = document.getElementById('newRunButton');
+  if (!dialog || !summary || !resumeButton || !newRunButton) {
+    applySavedRun(savedRun);
+    return Promise.resolve();
+  }
+
+  summary.textContent = `Level ${savedRun.level}/${MAX_LEVEL} · ${savedRun.lives} Leben · ${savedRun.score.toLocaleString('de-DE')} Punkte · ${formatMs(savedRun.elapsedMs)}`;
+  return new Promise((resolve) => {
+    const finish = (resume) => {
+      if (resume) applySavedRun(savedRun);
+      else clearSavedRun();
+      if (dialog.open && typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
+      resolve();
+    };
+    resumeButton.addEventListener('click', () => finish(true), { once: true });
+    newRunButton.addEventListener('click', () => finish(false), { once: true });
+    dialog.addEventListener('cancel', (event) => event.preventDefault(), { once: true });
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    resumeButton.focus();
+  });
+}
+
 function bootstrapGame() {
   const manifestUrl = 'assets/assets-manifest.json';
-  fetch(manifestUrl, { cache: 'no-store' })
+  resolveInitialRunChoice()
+    .then(() => fetch(manifestUrl, { cache: 'no-store' }))
     .then((resp) => (resp.ok ? resp.json() : null))
     .then((manifestRaw) => {
       if (manifestRaw) {

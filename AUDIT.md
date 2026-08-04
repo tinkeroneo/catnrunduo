@@ -15,9 +15,11 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | ID | Status | Ergebnis |
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
-| CAT-03 | teilweise erledigt | `package.json`, einheitlicher `npm run check`, Syntaxprüfung und 2 Logiktests ergänzt; Lint und CI fehlen noch |
+| CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
+| CAT-03 | teilweise erledigt | `package.json`, einheitlicher `npm run check`, Syntaxprüfung und 6 Tests ergänzt; Lint und CI fehlen noch |
 | CAT-05 | begonnen | Levelgenerator als erstes reines, browserunabhängig testbares Modul aus `game.js` gelöst |
-| CAT-02, CAT-04, CAT-06 bis CAT-12 | offen | gemäß priorisierter Rest-Roadmap |
+| CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
+| CAT-04, CAT-06 bis CAT-09, CAT-12 | offen | gemäß priorisierter Rest-Roadmap |
 
 ## Aktueller Aufbau
 
@@ -57,13 +59,15 @@ Umsetzung: Der Generator liegt in `src/level-generator.js` und kann sowohl im Br
 
 Akzeptanz: erfüllt.
 
-#### CAT-02: Ein 52-Level-Lauf ist nicht fortsetzbar
+#### CAT-02 · erledigt: Ein 52-Level-Lauf war nicht fortsetzbar
 
 Ein Reload, Tab-Abbruch oder versehentlicher mobiler Neustart setzt den gesamten Lauf zurück. Bei 52 Levels ist das aus Anwendersicht ein hohes Frust- und Abbruchrisiko. Die Bestzeit wird erst am Ende des Gesamtlaufs gespeichert.
 
 Maßnahme: Versionierten Save-State für Level, Punkte, Leben, Streaks und Laufzeit einführen; „Fortsetzen“ und „Neuer Lauf“ explizit anbieten.
 
-Akzeptanz: Ein Lauf lässt sich nach Reload am letzten abgeschlossenen Level fortsetzen; inkompatible oder beschädigte Saves fallen kontrolliert auf einen neuen Lauf zurück.
+Umsetzung: Nach jedem abgeschlossenen Level wird ein validierter Snapshot gespeichert. Beim nächsten Start zeigt ein semantischer Dialog Level, Leben, Punkte und Laufzeit und bietet „Fortsetzen“ oder „Neuer Lauf“. Inkompatible, beschädigte und blockierte Speicherzustände fallen kontrolliert auf einen neuen Lauf zurück.
+
+Akzeptanz: erfüllt und mit Storage-/UI-Vertragstests abgesichert.
 
 #### CAT-03 · teilweise erledigt: Automatisierte Absicherung
 
@@ -119,17 +123,21 @@ Begriffe wie `Mod`, `Boost`, `Boss`, `Assist`, `Fokus` und `Challenge` stehen di
 
 Maßnahme: Informationen hierarchisieren, nur kontextrelevante Werte zeigen, verständliche Labels und korrekte deutsche Typografie verwenden.
 
-#### CAT-10: Riskanter Sofort-Neustart auf Mobile
+#### CAT-10 · erledigt: Riskanter Sofort-Neustart auf Mobile
 
 Der Neustart ist eine dauerhaft sichtbare Ein-Tap-Aktion. Ein Fehltipp kann einen langen Lauf ohne Bestätigung löschen.
 
 Maßnahme: Während eines aktiven Laufs Long-Press oder kurze Bestätigung einsetzen; im Game-over-Zustand darf der Neustart direkt bleiben.
 
-#### CAT-11: Audioauswahl wird nicht gespeichert
+Umsetzung: Während eines laufenden Runs ist innerhalb von 2,5 Sekunden eine zweite Neustartaktion nötig. Game-over- und Siegzustände starten weiterhin direkt neu.
+
+#### CAT-11 · erledigt: Audioauswahl wurde nicht gespeichert
 
 Bestzeit und Touch-Profil sind persistent, Audio-Modus beziehungsweise Stummschaltung dagegen nicht.
 
 Maßnahme: Audioeinstellung robust in `localStorage` speichern und bei nicht verfügbarem Storage auf einen sicheren Standard zurückfallen.
+
+Umsetzung: Der aktive Audiomodus wird gespeichert, beim Start ohne Query-Override wiederhergestellt und bei blockiertem Storage sicher auf `primary` zurückgesetzt.
 
 #### CAT-12: Betriebs- und Entwicklerdokumentation fehlt
 
@@ -147,13 +155,12 @@ Maßnahme: README und Asset-Lizenzinventar ergänzen; lokale Startanweisung und 
 
 ## Empfohlene Abarbeitung
 
-1. Save/Resume-Konzept für den Langzeitlauf umsetzen und Restart-Verhalten absichern (`CAT-02`, `CAT-10`).
-2. Mobile Onboarding und zugängliche DOM-Controls umsetzen (`CAT-06`, `CAT-07`).
-3. Asset-Pipeline bereinigen, ungenutzte 30,32 MiB ausschließen und ein Transferbudget durchsetzen (`CAT-04`).
-4. Qualitätsgate um Lint, Progressions-/Persistenztests, dauerhaften Browser-Smoke-Test und CI ergänzen (`CAT-03`).
-5. `game.js` entlang getesteter Grenzen schrittweise modularisieren (`CAT-05`).
-6. HUD, Desktop-Layout, Texte und Audio-Persistenz polieren (`CAT-08`, `CAT-09`, `CAT-11`).
-7. README, Lizenzinventar und Release-Checkliste abschließen (`CAT-12`).
+1. Mobile Onboarding und zugängliche DOM-Controls umsetzen (`CAT-06`, `CAT-07`).
+2. Asset-Pipeline bereinigen, ungenutzte 30,32 MiB ausschließen und ein Transferbudget durchsetzen (`CAT-04`).
+3. Qualitätsgate um Lint, Progressions-/Persistenztests, dauerhaften Browser-Smoke-Test und CI ergänzen (`CAT-03`).
+4. `game.js` entlang getesteter Grenzen schrittweise modularisieren (`CAT-05`).
+5. HUD, Desktop-Layout und Texte polieren (`CAT-08`, `CAT-09`).
+6. README, Lizenzinventar und Release-Checkliste abschließen (`CAT-12`).
 
 ## Browser-Nachweise
 

@@ -14,7 +14,16 @@
     <h1>Cat Platformer</h1>
     <p>Tastatur: Pfeile oder A/D + Leertaste/W/Oben. Handy: links ziehen zum Laufen, nach oben wischen zum Springen.</p>
   </div>
+  <dialog id="resumeDialog" class="run-dialog" aria-labelledby="resumeTitle" aria-describedby="resumeSummary">
+    <h2 id="resumeTitle">Lauf fortsetzen?</h2>
+    <p id="resumeSummary"></p>
+    <div class="run-dialog__actions">
+      <button id="newRunButton" type="button" class="secondary">Neuer Lauf</button>
+      <button id="resumeRunButton" type="button">Fortsetzen</button>
+    </div>
+  </dialog>
   <div id="game"></div>
+  <script src="src/run-storage.js"></script>
   <script src="src/level-generator.js"></script>
   <script src="src/game.js"></script>
 </body>

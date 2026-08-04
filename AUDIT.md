@@ -40,6 +40,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|
 | Git-Status und Upstream | sauber, `main` folgt `origin/main` |
 | Qualitätsgate | `npm run check` erfolgreich |
+| Dependency-Audit | `npm audit` erfolgreich; 0 bekannte Schwachstellen |
 | Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
 | Modul-/Vertragstests | 11/11 erfolgreich; Generator, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
@@ -49,7 +50,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
 | Release-Build | 17 Runtime-Dateien, 15.507.831 Bytes bei 16-MiB-Budget |
-| CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build vorhanden |
+| CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build auf Zielcommit erfolgreich |
 
 ## Befunde
 
@@ -163,7 +164,7 @@ Umsetzung: README dokumentiert Start, Steuerung, Query-Parameter, Architektur un
 2. Beide Musikdateien für Webauslieferung neu encodieren und das 16-MiB-Budget anschließend deutlich senken.
 3. Vollständigen 52-Level-Lauf, physisches Touchgerät, Screenreader sowie Firefox/Safari manuell prüfen.
 4. Urheber, Lizenzen und Freigaben der ausgelieferten Sprites, Musik, Phaser-Datei und des Favicons belegen.
-5. Den ersten CI-Lauf auf GitHub kontrollieren und anschließend ausschließlich `dist/` deployen.
+5. Nach dem Deployment einen Smoke-Test gegen die veröffentlichte `dist/`-Version durchführen.
 
 ## Browser-Nachweise
 

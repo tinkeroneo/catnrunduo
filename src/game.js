@@ -2655,104 +2655,16 @@ function getTestLevelConfig() {
 }
 
 function getGeneratedLevelConfig(level) {
-  const seed = level * 97;
-  const progress = Math.min(1, (level - 3) / (MAX_LEVEL - 3));
-  const platformCount = 10 + Math.floor(progress * 8);
-  const platforms = [];
-  const xStart = 320;
-  const xStep = (WORLD_WIDTH - 520) / Math.max(1, platformCount - 1);
-
-  for (let i = 0; i < platformCount; i++) {
-    const x = Math.round(xStart + i * xStep);
-    const wave = Math.sin((i + level * 0.3) * 0.9) * 95;
-    const jitter = (rand01(seed, i) - 0.5) * (90 + progress * 70);
-    const y = clampValue(Math.round(380 + wave + jitter), 210, 510);
-    let type = 'normal';
-    if (i > 0 && i < platformCount - 1) {
-      const roll = rand01(seed + 201, i);
-      if (roll > 0.94) type = 'moving_v';
-      else if (roll > 0.86) type = 'moving';
-      else if (roll > 0.96) type = 'spring';
-      else if (roll < 0.12) type = 'crumbly';
-    }
-    let movingRange = Math.round(80 + rand01(seed + 211, i) * 90);
-    if (type === 'moving_v') {
-      const upRoom = Math.max(35, y - MOVING_V_MIN_Y);
-      const downRoom = Math.max(35, MOVING_V_MAX_Y - y);
-      const maxRange = Math.max(35, Math.min(110, upRoom, downRoom));
-      movingRange = Math.round(35 + rand01(seed + 211, i) * (maxRange - 35));
-    }
-    const movingSpeed = Math.round(60 + rand01(seed + 223, i) * 55);
-    platforms.push({ x, y, type, range: movingRange, speed: movingSpeed });
-  }
-
-  // Add reliable spring pads on the ground for vertical access.
-  const groundSpringCount = progress > 0.55 ? 2 : 1;
-  for (let i = 0; i < groundSpringCount; i++) {
-    const x = Math.round(620 + i * 930 + rand01(seed + 407, i) * 320);
-    platforms.push({ x: clampValue(x, 260, WORLD_WIDTH - 260), y: GROUND_SPRING_Y, type: 'spring' });
-  }
-
-  const mice = [];
-  const mouseTarget = 12 + Math.floor(progress * 10);
-  mice.push([220, WORLD_HEIGHT - 88]);
-  mice.push([2520, WORLD_HEIGHT - 88]);
-
-  for (let i = 0; i < platforms.length && mice.length < mouseTarget; i++) {
-    const { x: px, y: py } = platforms[i];
-    mice.push([px, py - 40]);
-    if (mice.length < mouseTarget && i % 3 === 1) {
-      mice.push([px + 35, py - 52]);
-    }
-  }
-
-  const enemies = [];
-  const enemyCount = 4 + Math.floor(progress * 7);
-  const segmentWidth = (WORLD_WIDTH - 520) / enemyCount;
-  for (let i = 0; i < enemyCount; i++) {
-    const center = Math.round(340 + i * segmentWidth + segmentWidth * 0.5);
-    const patrol = Math.round(110 + progress * 80 + rand01(seed + 11, i) * 60);
-    const minX = clampValue(center - patrol, 180, WORLD_WIDTH - 220);
-    const maxX = clampValue(center + patrol, 220, WORLD_WIDTH - 120);
-    const speed = Math.round(80 + progress * 65 + rand01(seed + 29, i) * 22);
-    const type = (i % 3 === 1 || rand01(seed + 911, i) > 0.86) ? 'hunter' : 'patrol';
-    enemies.push({ x: center, y: WORLD_HEIGHT - 90, minX, maxX, speed, type });
-  }
-
-  const catnips = [];
-  const catnipCount = 2 + Math.floor(progress * 4);
-  for (let i = 0; i < catnipCount; i++) {
-    const x = Math.round(300 + i * ((WORLD_WIDTH - 600) / Math.max(1, catnipCount - 1)) + (rand01(seed + 509, i) - 0.5) * 180);
-    catnips.push([clampValue(x, 220, WORLD_WIDTH - 220), GROUND_PICKUP_Y]);
-  }
-
-  const hiddenLives = [];
-  if (level % 4 === 0 || rand01(seed + 307, 1) > 0.92) {
-    const lifeCount = progress > 0.72 && rand01(seed + 313, 2) > 0.65 ? 2 : 1;
-    const candidates = platforms.filter((p) => p.type === 'normal' && p.y >= 250 && p.y <= 460);
-    for (let i = 0; i < lifeCount; i++) {
-      if (candidates.length === 0) break;
-      const idx = Math.floor(rand01(seed + 317, i) * candidates.length) % candidates.length;
-      const p = candidates[idx];
-      hiddenLives.push([p.x, p.y]);
-    }
-  }
-
-  const cfg = { platforms, mice, enemies, catnips, hiddenLives };
-
-  if (level % BOSS_LEVEL_INTERVAL === 0) {
-    const hp = 4 + Math.floor(progress * 3);
-    cfg.boss = {
-      x: 2460,
-      y: WORLD_HEIGHT - 92,
-      minX: 2320,
-      maxX: 2520,
-      speed: 90 + Math.floor(progress * 20),
-      hp,
-    };
-  }
-
-  return cfg;
+  return CatLevelGenerator.generateLevelConfig(level, {
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    maxLevel: MAX_LEVEL,
+    movingVMinY: MOVING_V_MIN_Y,
+    movingVMaxY: MOVING_V_MAX_Y,
+    bossLevelInterval: BOSS_LEVEL_INTERVAL,
+    groundPickupY: GROUND_PICKUP_Y,
+    groundSpringY: GROUND_SPRING_Y,
+  });
 }
 
 function rand01(seed, idx) {

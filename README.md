@@ -25,7 +25,7 @@ Neustart, Pause, Audio, Touch-Profil und Hilfe sind zusätzlich als benannte But
 ## Entwicklung und Qualität
 
 ```powershell
-npm run check   # ESLint, 8 Node-Tests und Headless-Chrome-Smoke-Test
+npm run check   # ESLint, 11 Node-Tests und Headless-Chrome-Smoke-Test
 npm run build   # erzeugt das manifestgesteuerte Release in dist/
 ```
 
@@ -38,7 +38,7 @@ Nützliche Query-Parameter:
 - `?help=1` öffnet die Hilfe; `?help=0` unterdrückt nur das automatische Öffnen.
 - `?resume=1`, `?resume=0` oder `?new=1` steuert den gespeicherten Lauf für automatisierte Prüfungen.
 
-`src/game.js` enthält weiterhin den Phaser-Szenenlebenszyklus. Generator, Persistenz und HUD-Textformatierung liegen als browserunabhängig getestete Module daneben.
+`src/game.js` enthält weiterhin den Phaser-Szenenlebenszyklus. Generator, Progression/Aufgaben, Persistenz und HUD-Textformatierung liegen als browserunabhängig getestete Module daneben.
 
 ## Release und Assets
 

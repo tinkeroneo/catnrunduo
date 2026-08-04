@@ -7,6 +7,7 @@ export default [
       globals: {
         Audio: "readonly",
         CatLevelGenerator: "readonly",
+        CatProgression: "readonly",
         Phaser: "readonly",
         URLSearchParams: "readonly",
         clearTimeout: "readonly",

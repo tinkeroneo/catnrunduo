@@ -26,6 +26,7 @@ test('game actions and onboarding are semantic and keyboard reachable', () => {
   assert.match(html, /<dialog id="helpDialog"[^>]*aria-labelledby="helpTitle"[^>]*aria-describedby="helpIntro"/);
   assert.match(html, /id="game"[^>]*aria-label="Seitlich scrollendes Plattformspiel mit einer Katze"/);
   assert.ok(html.indexOf('src/ui-text.js') < html.indexOf('src/game.js'));
+  assert.ok(html.indexOf('src/progression.js') < html.indexOf('src/game.js'));
   assert.match(css, /\.game-controls button \{[\s\S]*width: 46px;[\s\S]*height: 46px/);
   assert.match(css, /\.game-controls button:focus-visible/);
   assert.match(game, /catPlatformer\.onboardingSeen\.v1/);

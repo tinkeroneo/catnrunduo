@@ -15,8 +15,8 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | erledigt | ESLint ohne Warnungen, 8 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
-| CAT-05 | begonnen | Levelgenerator, Persistenz und HUD-Texte als reine, browserunabhängig testbare Module aus `game.js` gelöst |
+| CAT-03 | erledigt | ESLint ohne Warnungen, 11 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
+| CAT-05 | fortgeschritten | Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte als reine testbare Module ausgelagert; Szenendatei bleibt groß |
 | CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
 | CAT-04 | erledigt | manifestgesteuerter 15,5-MB-Release schließt rund 40 MB Quellen/Altassets aus; Musik lädt erst nach Interaktion |
@@ -26,7 +26,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 
 - Statische Webanwendung mit manifestgesteuertem Allowlist-Build und 16-MiB-Transferbudget.
 - Phaser 3.90.0 liegt vendort als `vendor/phaser.min.js` im Repository.
-- Fast die gesamte Spiellogik liegt weiterhin in `src/game.js`; Levelgenerator, Persistenz und HUD-Texte sind als reine Module ausgelagert.
+- Der Phaser-Szenenlebenszyklus liegt weiterhin in `src/game.js`; Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte sind als reine Module ausgelagert.
 - Level 1 und 2 sind handgebaut; Level 3 bis 52 werden deterministisch generiert.
 - Bosslevel erscheinen in Zehnerschritten.
 - Desktop: Pfeiltasten oder A/D, Sprung über Leertaste/W/Pfeil hoch, Pause über P, Neustart über R, Audio über M.
@@ -42,13 +42,13 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Qualitätsgate | `npm run check` erfolgreich |
 | Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
-| Modul-/Vertragstests | 8/8 erfolgreich; Generator, Persistenz, Neustart, HUD-Texte und semantische UI |
+| Modul-/Vertragstests | 11/11 erfolgreich; Generator, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
-| Release-Build | 16 Runtime-Dateien, 15.507.177 Bytes bei 16-MiB-Budget |
+| Release-Build | 17 Runtime-Dateien, 15.507.831 Bytes bei 16-MiB-Budget |
 | CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build vorhanden |
 
 ## Befunde
@@ -77,7 +77,7 @@ Akzeptanz: erfüllt und mit Storage-/UI-Vertragstests abgesichert.
 
 Zu Auditbeginn gab es weder Paketmanifest noch Test-, Lint- oder CI-Konfiguration. Generator, Challenge-Auswertung, Progression, Persistenz und Restart-/Pause-Zustände waren vollständig ungesichert.
 
-Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Acht Node-Tests sichern Generator, Persistenz, Neustart, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
+Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Elf Node-Tests sichern Generator, Progression/Aufgaben, Persistenz, Neustart, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
 
 Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests und einen Start-/Input-/Restart-Smoke-Test; CI führt denselben Befehl aus.
 
@@ -85,15 +85,15 @@ Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests u
 
 Das Projekt umfasst rund 56 MB. Allein Audio belegt 44,06 MiB; 30,32 MiB davon sind im aktuellen Manifest und Fallback nicht referenziert. Die potenziell verwendeten Audiodateien belegen weitere 13,74 MiB. Zusätzlich liegen bearbeitbare `.piskel`-Quellen im auszuliefernden Baum.
 
-Umsetzung: `npm run build` kopiert ausschließlich Runtime-Dateien und die in `assets-manifest.json` referenzierten Assets. Das Ergebnis enthält 16 Dateien mit 15.507.177 Bytes statt des rund 56-MB-Quellbaums und bricht oberhalb von 16 MiB ab. Nur die aktive Musikschicht wird mit `preload="none"` angelegt und erst infolge einer Nutzergeste abgespielt. Eine weitere Audiokompression bleibt ein sinnvoller späterer Optimierungsschritt.
+Umsetzung: `npm run build` kopiert ausschließlich Runtime-Dateien und die in `assets-manifest.json` referenzierten Assets. Das Ergebnis enthält 17 Dateien mit 15.507.831 Bytes statt des rund 56-MB-Quellbaums und bricht oberhalb von 16 MiB ab. Nur die aktive Musikschicht wird mit `preload="none"` angelegt und erst infolge einer Nutzergeste abgespielt. Eine weitere Audiokompression bleibt ein sinnvoller späterer Optimierungsschritt.
 
 Akzeptanz: Definiertes Transferbudget für den Erststart; keine unreferenzierten Dateien im Deploy-Artefakt; Audio lädt erst nach Wahl beziehungsweise Nutzerinteraktion.
 
-#### CAT-05 · begonnen: Monolithische Spiellogik
+#### CAT-05 · fortgeschritten: Monolithische Spiellogik
 
 `src/game.js` bündelt Assets, Bootstrapping, Levelgenerierung, Physik, Gegner, Audio, Persistenz, Touch, HUD und Rendering. Das erhöht Änderungsrisiko und erschwert isolierte Tests.
 
-Maßnahme: In kleinen Schritten in zustandsarme Module trennen: Konfiguration, Progression, Eingabe, Audio, HUD und Entitäten. Der Levelgenerator ist als erste getestete Grenze bereits ausgelagert.
+Umsetzung: Generator, versionierte Persistenz, Progressionsvarianten, Aufgabenbewertung, Bonuskurve und HUD-Textformatierung laufen ohne Browser/Phaser und besitzen direkte Tests. `game.js` bleibt mit Szenenaufbau, Entitäten, Physik, Touch und Audio weiterhin groß; weitere Extraktion sollte getrennt und verhaltensgesichert erfolgen.
 
 Akzeptanz: Generator und Progression laufen ohne Browser/Phaser in Unit-Tests; `game.js` übernimmt überwiegend Komposition und Szenenlebenszyklus.
 

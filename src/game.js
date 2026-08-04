@@ -72,6 +72,7 @@ const FORCE_BOSS_TEST = URL_QUERY.get('boss') === '1';
 const BGM_QUERY_MODE = URL_QUERY.has('bgm') ? URL_QUERY.get('bgm').toLowerCase() : null;
 const RUN_STORAGE = window.CatRunStorage;
 const UI_TEXT = window.CatUiText;
+const PROGRESSION = window.CatProgression;
 const COLLIDER_PROFILES = {
   playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
   playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
@@ -133,19 +134,6 @@ const ANIM_CONFIG = {
   dogRun: { fps: 10, repeat: -1 },
   dogChase: { fps: 12, repeat: -1 },
 };
-const LEVEL_MODIFIERS = [
-  { key: 'normal', label: 'Normal', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.0 },
-  { key: 'low_gravity', label: 'Low Gravity', gravityMul: 0.86, runMul: 1, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.04 },
-  { key: 'sticky', label: 'Sticky Ground', gravityMul: 1, runMul: 0.84, enemySpeedMul: 1, windX: 0, challengeBonusMul: 1.06 },
-  { key: 'wind_right', label: 'Wind ->', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: 24, challengeBonusMul: 1.1 },
-  { key: 'wind_left', label: '<- Wind', gravityMul: 1, runMul: 1, enemySpeedMul: 1, windX: -24, challengeBonusMul: 1.1 },
-  { key: 'fast_patrol', label: 'Fast Patrol', gravityMul: 1, runMul: 1, enemySpeedMul: 1.16, windX: 0, challengeBonusMul: 1.14 },
-];
-const LEVEL_CHALLENGES = [
-  { key: 'no_hit', label: 'Kein Treffer' },
-  { key: 'combo5', label: 'Combo x1.5 (5er)' },
-  { key: 'stomps2', label: '2 Gegner stompen' },
-];
 const ADAPTIVE_ASSIST_ENEMY_SPEED_MUL = 0.94;
 const ADAPTIVE_ASSIST_RUN_MUL = 1.05;
 const ADAPTIVE_ASSIST_JUMP_DELTA = -24;
@@ -263,7 +251,7 @@ let restartConfirmationUntilMs = 0;
 let bestTimeMs = null;
 let currentLevel = 1;
 let currentTheme = THEMES[0];
-let currentLevelModifier = LEVEL_MODIFIERS[0];
+let currentLevelModifier = PROGRESSION.getLevelModifier(1);
 let currentLevelChallenge = null;
 let levelLivesLost = 0;
 let levelMaxCombo = 0;
@@ -782,8 +770,8 @@ function create() {
 
   const theme = getThemeForLevel(currentLevel);
   currentTheme = theme;
-  currentLevelModifier = getLevelModifier(currentLevel);
-  currentLevelChallenge = getLevelChallenge(currentLevel);
+  currentLevelModifier = PROGRESSION.getLevelModifier(currentLevel);
+  currentLevelChallenge = PROGRESSION.getLevelChallenge(currentLevel);
   adaptiveAssistActive = challengeMissStreak >= 2 && currentLevel > 2;
   adaptivePressureActive = !adaptiveAssistActive && challengeSuccessStreak >= 3 && currentLevel > 3;
   levelLivesLost = 0;
@@ -1284,9 +1272,13 @@ function reachFlag() {
   }
 
   const levelClearBonus = 500 * currentLevel;
-  const challengeResult = evaluateLevelChallenge();
+  const challengeResult = PROGRESSION.evaluateLevelChallenge(currentLevelChallenge, {
+    livesLost: levelLivesLost,
+    maxCombo: levelMaxCombo,
+    stomps: levelStomps,
+  });
   const challengeBonus = challengeResult.completed
-    ? calculateChallengeBonus(challengeResult.bonus, challengeSuccessStreak, currentLevelModifier)
+    ? PROGRESSION.calculateChallengeBonus(challengeResult.bonus, challengeSuccessStreak, currentLevelModifier)
     : 0;
   if (challengeResult.completed) {
     challengeSuccessStreak += 1;
@@ -2627,46 +2619,6 @@ function getLevelConfig(level) {
     cfg = getGeneratedLevelConfig(level);
   }
   return applyBossOverride(cfg, level);
-}
-
-function getLevelModifier(level) {
-  if (level <= 1) return LEVEL_MODIFIERS[0];
-  const idx = 1 + ((level - 2) % (LEVEL_MODIFIERS.length - 1));
-  return LEVEL_MODIFIERS[idx];
-}
-
-function getLevelChallenge(level) {
-  if (level <= 1) {
-    return { key: 'intro', label: 'Warmup', bonus: 0 };
-  }
-  const def = LEVEL_CHALLENGES[(level - 2) % LEVEL_CHALLENGES.length];
-  return {
-    key: def.key,
-    label: def.label,
-    bonus: 220 + level * 18,
-  };
-}
-
-function evaluateLevelChallenge() {
-  if (!currentLevelChallenge || currentLevelChallenge.key === 'intro') {
-    return { completed: false, bonus: 0, key: 'intro' };
-  }
-  if (currentLevelChallenge.key === 'no_hit') {
-    return { completed: levelLivesLost === 0, bonus: currentLevelChallenge.bonus, key: 'no_hit' };
-  }
-  if (currentLevelChallenge.key === 'combo5') {
-    return { completed: levelMaxCombo >= 5, bonus: currentLevelChallenge.bonus, key: 'combo5' };
-  }
-  if (currentLevelChallenge.key === 'stomps2') {
-    return { completed: levelStomps >= 2, bonus: currentLevelChallenge.bonus, key: 'stomps2' };
-  }
-  return { completed: false, bonus: 0, key: currentLevelChallenge.key };
-}
-
-function calculateChallengeBonus(baseBonus, currentStreak, modifier) {
-  const modMul = modifier?.challengeBonusMul ?? 1;
-  const streakMul = 1 + Math.min(3, Math.max(0, currentStreak)) * 0.1;
-  return Math.round(baseBonus * modMul * streakMul);
 }
 
 function getTestLevelConfig() {

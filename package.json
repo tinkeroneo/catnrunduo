@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node --check src/level-generator.js && node --check src/run-storage.js && node --check src/game.js && node --test tests/*.test.js",
+    "check": "node --check src/level-generator.js && node --check src/run-storage.js && node --check src/ui-text.js && node --check src/game.js && node --test tests/*.test.js",
     "test": "node --test tests/*.test.js"
   }
 }

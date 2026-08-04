@@ -10,10 +10,20 @@
   <script src="vendor/phaser.min.js"></script>
 </head>
 <body>
-  <div class="hud">
-    <h1>Cat Platformer</h1>
-    <p>Tastatur: Pfeile oder A/D + Leertaste/W/Oben. Handy: links ziehen zum Laufen, nach oben wischen zum Springen.</p>
-  </div>
+  <main class="game-shell">
+    <header class="hud">
+      <h1>Cat Platformer</h1>
+      <p id="controlsHint">Pfeile oder A/D: laufen · Leertaste, W oder ↑: springen · P: Pause · R: Neustart · M: Audio</p>
+    </header>
+    <nav id="gameControls" class="game-controls" aria-label="Spielaktionen">
+      <button id="restartControl" type="button" aria-label="Lauf neu starten" title="Lauf neu starten">↻</button>
+      <button id="pauseControl" type="button" aria-label="Spiel pausieren" aria-pressed="false" title="Pause">⏸</button>
+      <button id="audioControl" type="button" aria-label="Audio wechseln" aria-pressed="true" title="Audio wechseln">♪</button>
+      <button id="touchProfileControl" type="button" aria-label="Touch-Profil Einfach" aria-pressed="false" title="Touch-Profil wechseln">◕</button>
+      <button id="helpControl" type="button" aria-label="Spielhilfe öffnen" title="Spielhilfe">❓</button>
+    </nav>
+    <div id="game" role="img" aria-label="Seitlich scrollendes Plattformspiel mit einer Katze" aria-describedby="controlsHint"></div>
+  </main>
   <dialog id="resumeDialog" class="run-dialog" aria-labelledby="resumeTitle" aria-describedby="resumeSummary">
     <h2 id="resumeTitle">Lauf fortsetzen?</h2>
     <p id="resumeSummary"></p>
@@ -22,9 +32,20 @@
       <button id="resumeRunButton" type="button">Fortsetzen</button>
     </div>
   </dialog>
-  <div id="game"></div>
+  <dialog id="helpDialog" class="run-dialog help-dialog" aria-labelledby="helpTitle" aria-describedby="helpIntro">
+    <h2 id="helpTitle">So spielst du</h2>
+    <p id="helpIntro">Sammle alle Mäuse und erreiche danach die Flagge.</p>
+    <ul>
+      <li><strong>Desktop:</strong> Laufe mit Pfeilen oder A/D und springe mit Leertaste, W oder ↑.</li>
+      <li><strong>Touch:</strong> Ziehe nach links oder rechts zum Laufen und wische nach oben zum Springen.</li>
+      <li><strong>Aktionen:</strong> Neustart, Pause, Audio und Touch-Profil haben benannte Buttons.</li>
+      <li><strong>Fortschritt:</strong> Nach jedem Level wird dein Lauf automatisch gespeichert.</li>
+    </ul>
+    <button id="closeHelpButton" type="button">Loslaufen</button>
+  </dialog>
   <script src="src/run-storage.js"></script>
   <script src="src/level-generator.js"></script>
+  <script src="src/ui-text.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>

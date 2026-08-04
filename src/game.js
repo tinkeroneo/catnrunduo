@@ -63,6 +63,7 @@ const JUMP_COYOTE_MS = 130;
 const JUMP_BUFFER_MS = 140;
 const MOBILE_PARALLAX_DENSITY = 0.65;
 const TOUCH_PROFILE_STORAGE_KEY = 'catPlatformer.touchProfile';
+const ONBOARDING_STORAGE_KEY = 'catPlatformer.onboardingSeen.v1';
 const DOG_SHEET_KEYS = ['dog_sheet_new'];
 const DOG_CHASE_SHEET_KEYS = ['dog_chase_sheet_new'];
 const URL_QUERY = new URLSearchParams(window.location.search);
@@ -71,6 +72,7 @@ const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
 const FORCE_BOSS_TEST = URL_QUERY.get('boss') === '1';
 const BGM_QUERY_MODE = URL_QUERY.has('bgm') ? URL_QUERY.get('bgm').toLowerCase() : null;
 const RUN_STORAGE = window.CatRunStorage;
+const UI_TEXT = window.CatUiText;
 const COLLIDER_PROFILES = {
   playerSheet: { type: 'fixed', width: 100, height: 22, offsetX: 30, offsetY: 192 },
   playerFallback: { type: 'ratio', width: 0.7, height: 0.9, offsetX: 0.15, offsetY: 0.08 },
@@ -149,7 +151,6 @@ const ADAPTIVE_ASSIST_ENEMY_SPEED_MUL = 0.94;
 const ADAPTIVE_ASSIST_RUN_MUL = 1.05;
 const ADAPTIVE_ASSIST_JUMP_DELTA = -24;
 const ADAPTIVE_PRESSURE_ENEMY_SPEED_MUL = 1.04;
-const MOBILE_BUTTON_SIZE_PX = 46;
 const MOBILE_BUTTON_ICONS = {
   restart: '↻',
   pause: '⏸',
@@ -295,6 +296,9 @@ let restartTouchButton;
 let pauseTouchButton;
 let touchProfileButton;
 let audioToggleButton;
+let helpDialogBound = false;
+let helpWasPaused = false;
+let helpOpenedThisSession = false;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -1077,7 +1081,7 @@ function create() {
   levelText.setVisible(false);
 
   scoreText = this.add
-    .text(16, 52, `L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`, {
+    .text(16, 52, getHudScoreSummary(), {
       fontFamily: 'Segoe UI, sans-serif',
       fontSize: '16px',
       color: '#1f2a44',
@@ -1100,7 +1104,7 @@ function create() {
   lifeText.setVisible(false);
 
   timerText = this.add
-    .text(16, 80, `Mod ${currentLevelModifier.label}  Boost -  Boss -`, {
+    .text(16, 80, getRunContextSummary('-', '-'), {
       fontFamily: 'Segoe UI, sans-serif',
       fontSize: '16px',
       color: '#1f2a44',
@@ -1158,7 +1162,7 @@ function create() {
   bossText.setVisible(false);
 
   pauseText = this.add
-    .text(480, 270, 'PAUSE (P zum Fortsetzen)', {
+    .text(480, 270, 'Pausiert (P zum Fortsetzen)', {
       fontFamily: 'Segoe UI, sans-serif',
       fontSize: '30px',
       color: '#1f2a44',
@@ -1170,35 +1174,28 @@ function create() {
     .setDepth(20)
     .setVisible(false);
 
-  const isMobileUi = window.matchMedia?.('(max-width: 900px)').matches ?? false;
   touchProfileMode = resolveInitialTouchProfile();
-  if (isMobileUi) {
-    touchControls.tuning = resolveTouchTuning(this);
-    restartTouchButton = createMobileRoundButton(this, MOBILE_BUTTON_ICONS.restart, () => {
-      restartRun();
-    });
-    pauseTouchButton = createMobileRoundButton(this, MOBILE_BUTTON_ICONS.pause, () => {
-      togglePause();
-    });
-    audioToggleButton = createMobileRoundButton(this, getAudioIconForMode(audioMode), () => {
-      toggleAudioMode(this);
-    });
-    touchProfileButton = createMobileRoundButton(
-      this,
-      touchProfileMode === 'precise' ? MOBILE_BUTTON_ICONS.touchPrecise : MOBILE_BUTTON_ICONS.touchEasy,
-      () => {
+  touchControls.tuning = resolveTouchTuning(this);
+  restartTouchButton = createDomActionButton('restartControl', MOBILE_BUTTON_ICONS.restart, () => {
+    restartRun();
+  });
+  pauseTouchButton = createDomActionButton('pauseControl', MOBILE_BUTTON_ICONS.pause, () => {
+    togglePause();
+  });
+  audioToggleButton = createDomActionButton('audioControl', getAudioIconForMode(audioMode), () => {
+    toggleAudioMode(this);
+  });
+  touchProfileButton = createDomActionButton(
+    'touchProfileControl',
+    touchProfileMode === 'precise' ? MOBILE_BUTTON_ICONS.touchPrecise : MOBILE_BUTTON_ICONS.touchEasy,
+    () => {
       const next = touchProfileMode === 'easy' ? 'precise' : 'easy';
       setTouchProfileMode(next, this);
       setStatus(`Touch-Profil: ${touchProfileMode}`, 1200);
-      }
-    );
-    layoutMobileActionButtons(this);
-  } else {
-    restartTouchButton = null;
-    pauseTouchButton = null;
-    touchProfileButton = null;
-    audioToggleButton = null;
-  }
+    }
+  );
+  syncActionButtonStates();
+  setupHelpDialog();
 
   initSfx(this);
   initAudioLayers();
@@ -1211,7 +1208,7 @@ function create() {
     const assistPart = adaptiveAssistActive ? ' | Assist aktiv' : '';
     const pressurePart = adaptivePressureActive ? ' | Fokus aktiv' : '';
     setStatus(
-      `Level ${currentLevel}: Mod ${currentLevelModifier.label} | Challenge: ${currentLevelChallenge.label}${assistPart}${pressurePart}`,
+      `Level ${currentLevel}: Variante ${currentLevelModifier.label} · Aufgabe: ${currentLevelChallenge.label}${assistPart}${pressurePart}`,
       3400
     );
   }
@@ -1231,7 +1228,7 @@ function collectMouse(playerSprite, mouse) {
   const mousePoints = Math.round(getThemeGameplay().mousePoints * comboMul);
   score += mousePoints;
   if (mouseComboCount > levelMaxCombo) levelMaxCombo = mouseComboCount;
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
   if (mouseComboCount >= 2) {
     setStatus(`Combo x${comboMul.toFixed(1)} (+${mousePoints})`, 650);
   }
@@ -1242,7 +1239,7 @@ function collectMouse(playerSprite, mouse) {
   }
 
   if (miceCollected === miceTotal) {
-    setStatus('Alle Maeuse gesammelt. Zur Flagge!', 2200);
+    setStatus('Alle Mäuse gesammelt. Zur Flagge!', 2200);
   }
 }
 
@@ -1274,14 +1271,14 @@ function spawnMilestoneLife(x, y) {
     onUpdate: () => life.refreshBody(),
     onComplete: () => life.refreshBody(),
   });
-  setStatus(`Bonus! ${MICE_PER_EXTRA_LIFE} Maeuse: Extra-Leben gespawnt.`, 1800);
+  setStatus(`Bonus! ${MICE_PER_EXTRA_LIFE} Mäuse: Extra-Leben erschienen.`, 1800);
 }
 
 function reachFlag() {
   if (gameWon || gameOver) return;
 
   if (miceCollected < miceTotal) {
-    setStatus('Sammle zuerst alle Maeuse.', 1600);
+    setStatus('Sammle zuerst alle Mäuse.', 1600);
     return;
   }
 
@@ -1303,13 +1300,13 @@ function reachFlag() {
     challengeMissStreak += 1;
   }
   score += levelClearBonus + challengeBonus;
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
 
   if (currentLevel < MAX_LEVEL) {
     gameWon = true;
     const challengePart = challengeResult.completed
-      ? ` Challenge geschafft (+${challengeBonus}) Streak ${challengeSuccessStreak}`
-      : ` Challenge verpasst`;
+      ? ` Aufgabe geschafft (+${challengeBonus}) · Serie ${challengeSuccessStreak}`
+      : ' Aufgabe verpasst';
     setStatus(`Level ${currentLevel} geschafft!${challengePart} Weiter zu Level ${currentLevel + 1}...`, 0);
     player.setVelocity(0, 0);
     player.anims.stop();
@@ -1326,7 +1323,7 @@ function reachFlag() {
   const runTimeMs = Math.max(0, Math.floor(sceneRef.time.now - runStartMs));
   const lifeBonus = lives * 250;
   score += lifeBonus;
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
 
   if (bestTimeMs == null || runTimeMs < bestTimeMs) {
     bestTimeMs = runTimeMs;
@@ -1339,7 +1336,7 @@ function reachFlag() {
   }
 
   clearSavedRun();
-  setStatus(`Geschafft! Zeit ${formatMs(runTimeMs)}. R fuer Neustart.`, 0);
+  setStatus(`Geschafft! Zeit ${formatMs(runTimeMs)}. R für Neustart.`, 0);
   player.setVelocity(0, 0);
   player.anims.stop();
   setCatIdleTexture(player);
@@ -1372,7 +1369,7 @@ function hitEnemy(playerSprite, enemy) {
       }
       playerSprite.setVelocityY(-460);
       score += Math.round(getThemeGameplay().stompPoints * 1.6);
-      scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+      scoreText.setText(getHudScoreSummary());
       if (nextHp <= 0) {
         enemy.disableBody(true, true);
         setStatus('Boss besiegt! Zur Flagge!', 2400);
@@ -1385,7 +1382,7 @@ function hitEnemy(playerSprite, enemy) {
     enemy.disableBody(true, true);
     playerSprite.setVelocityY(-430);
     score += getThemeGameplay().stompPoints;
-    scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+    scoreText.setText(getHudScoreSummary());
     setStatus('Boing! Gegner besiegt.', 1100);
     return;
   }
@@ -1406,7 +1403,7 @@ function loseLife(message) {
   levelLivesLost += 1;
   lives -= 1;
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
   setStatus(message, 1600);
 
   if (lives <= 0) {
@@ -1416,7 +1413,7 @@ function loseLife(message) {
     player.anims.stop();
     setCatIdleTexture(player);
     player.setTint(0xaa4444);
-    setStatus('Game Over. Druecke R fuer Neustart.', 0);
+    setStatus('Lauf beendet. Drücke R für einen Neustart.', 0);
     return;
   }
 
@@ -1500,7 +1497,7 @@ function collectCatnip(playerSprite, catnip) {
   const now = sceneRef.time.now;
   boostUntilMs = Math.max(boostUntilMs, now) + getThemeGameplay().catnipMs;
   score += 75;
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
   setStatus('Catnip! Kurz schneller und hoeher.', 1800);
 }
 
@@ -1518,7 +1515,7 @@ function collectLifePickup(playerSprite, pickup) {
   }
 
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
-  scoreText.setText(`L${currentLevel}/${MAX_LEVEL}  Maeuse ${miceCollected}/${miceTotal}  Punkte ${score}  Leben ${lives}`);
+  scoreText.setText(getHudScoreSummary());
 }
 
 function hitHiddenLifeBlock(playerSprite, block) {
@@ -2139,6 +2136,8 @@ function carryPlayerOnMovingPlatforms() {
 function update() {
   syncAnimationTiming();
 
+  if (isHelpDialogOpen()) return;
+
   if (Phaser.Input.Keyboard.JustDown(debugKey)) {
     setArcadeDebug(sceneRef, !debugHitboxesActive);
     setStatus(`Hitbox-Overlay: ${debugHitboxesActive ? 'AN' : 'AUS'}`, 900);
@@ -2186,9 +2185,7 @@ function update() {
   }
 
   if (!gameWon && !gameOver) {
-    const assistLabel = adaptiveAssistActive ? '  Assist' : '';
-    const focusLabel = adaptivePressureActive ? '  Fokus' : '';
-    timerText.setText(`Mod ${currentLevelModifier.label}${assistLabel}${focusLabel}  Boost ${boostLabel}  Boss ${bossLabel}`);
+    timerText.setText(getRunContextSummary(boostLabel, bossLabel));
   }
 
   if (hitCooldown > 0) {
@@ -2301,6 +2298,10 @@ function setStatus(message, durationMs = 2200) {
 
 function getThemeForLevel(level) {
   return THEMES[(Math.max(1, level) - 1) % THEMES.length];
+}
+
+function isMobileRuntime() {
+  return window.matchMedia?.('(max-width: 900px)').matches ?? false;
 }
 
 function createParallaxBackground(scene, theme) {
@@ -2556,6 +2557,31 @@ function applyBossOverride(cfg, level) {
     hp,
   };
   return cfg;
+}
+
+function getHudScoreSummary() {
+  const values = {
+    level: currentLevel,
+    maxLevel: MAX_LEVEL,
+    mice: miceCollected,
+    miceTotal,
+    score,
+    lives,
+  };
+  return UI_TEXT?.formatScoreSummary?.(values)
+    || `Level ${currentLevel}/${MAX_LEVEL} · Mäuse ${miceCollected}/${miceTotal} · Punkte ${score} · Leben ${lives}`;
+}
+
+function getRunContextSummary(boostLabel, bossLabel) {
+  const values = {
+    variant: currentLevelModifier.label,
+    assist: adaptiveAssistActive,
+    focus: adaptivePressureActive,
+    boost: boostLabel,
+    boss: bossLabel,
+  };
+  return UI_TEXT?.formatRunContext?.(values)
+    || `Variante ${currentLevelModifier.label} · Boost ${boostLabel} · Boss ${bossLabel}`;
 }
 
 function getLevelConfig(level) {
@@ -3039,7 +3065,6 @@ function syncMobileViewport(scene) {
     scene.scale.resize(viewportW, viewportH);
   }
   touchControls.tuning = resolveTouchTuning(scene);
-  layoutMobileActionButtons(scene);
 }
 
 function updateCameraLookAhead() {
@@ -3135,58 +3160,18 @@ function togglePause(forceState = null, silent = false) {
   if (!silent) setStatus('Weiter gehts.', 900);
 }
 
-function isMobileRuntime() {
-  return window.matchMedia?.('(max-width: 900px)').matches ?? false;
-}
-
-function createMobileRoundButton(scene, icon, onPress) {
-  const radius = Math.round(MOBILE_BUTTON_SIZE_PX * 0.5);
-  const shadow = scene.add
-    .circle(0, 0, radius + 1, 0x000000, 0.18)
-    .setScrollFactor(0)
-    .setDepth(39);
-  const background = scene.add
-    .circle(0, 0, radius, 0x2a3a5e, 0.72)
-    .setStrokeStyle(2, 0xffffff, 0.65)
-    .setScrollFactor(0)
-    .setDepth(40)
-    .setInteractive({ useHandCursor: true });
-  const gloss = scene.add
-    .ellipse(0, -Math.round(radius * 0.34), Math.round(radius * 1.18), Math.round(radius * 0.62), 0xffffff, 0.18)
-    .setScrollFactor(0)
-    .setDepth(40);
-  const label = scene.add
-    .text(0, 0, icon, {
-      fontFamily: 'Segoe UI Symbol, Segoe UI, sans-serif',
-      fontSize: '24px',
-      color: '#ffffff',
-    })
-    .setOrigin(0.5)
-    .setScrollFactor(0)
-    .setDepth(41);
-
-  background.on('pointerdown', onPress);
-  background.on('pointerover', () => {
-    background.setFillStyle(0x2a3a5e, 0.82);
-  });
-  background.on('pointerout', () => {
-    background.setFillStyle(0x2a3a5e, 0.72);
-  });
+function createDomActionButton(id, icon, onPress) {
+  const element = document.getElementById(id);
+  if (!element) return null;
+  element.textContent = icon;
+  element.onclick = (event) => {
+    event.preventDefault();
+    onPress();
+  };
   return {
-    setPosition(x, y) {
-      shadow.setPosition(x + 1, y + 2);
-      background.setPosition(x, y);
-      gloss.setPosition(x, y - Math.round(radius * 0.34));
-      label.setPosition(x, y);
-    },
+    element,
     setIcon(nextIcon) {
-      label.setText(nextIcon);
-    },
-    destroy() {
-      label.destroy();
-      gloss.destroy();
-      background.destroy();
-      shadow.destroy();
+      element.textContent = nextIcon;
     },
   };
 }
@@ -3194,6 +3179,96 @@ function createMobileRoundButton(scene, icon, onPress) {
 function setMobileButtonIcon(button, icon) {
   if (!button || typeof button.setIcon !== 'function') return;
   button.setIcon(icon);
+  syncActionButtonStates();
+}
+
+function syncActionButtonStates() {
+  const pauseButton = pauseTouchButton?.element;
+  if (pauseButton) {
+    pauseButton.setAttribute('aria-pressed', String(gamePaused));
+    pauseButton.setAttribute('aria-label', gamePaused ? 'Spiel fortsetzen' : 'Spiel pausieren');
+    pauseButton.title = gamePaused ? 'Spiel fortsetzen' : 'Pause';
+  }
+
+  const audioButton = audioToggleButton?.element;
+  if (audioButton) {
+    const audioEnabled = audioMode !== 'off';
+    const audioLabel = audioEnabled ? `Audio wechseln, aktuell ${audioMode}` : 'Audio einschalten';
+    audioButton.setAttribute('aria-pressed', String(audioEnabled));
+    audioButton.setAttribute('aria-label', audioLabel);
+    audioButton.title = audioLabel;
+  }
+
+  const profileButton = touchProfileButton?.element;
+  if (profileButton) {
+    const precise = touchProfileMode === 'precise';
+    const profileLabel = `Touch-Profil ${precise ? 'Präzise' : 'Einfach'}`;
+    profileButton.setAttribute('aria-pressed', String(precise));
+    profileButton.setAttribute('aria-label', profileLabel);
+    profileButton.title = `${profileLabel}; wechseln`;
+  }
+}
+
+function isHelpDialogOpen() {
+  return Boolean(document.getElementById('helpDialog')?.open);
+}
+
+function setupHelpDialog() {
+  const dialog = document.getElementById('helpDialog');
+  const openButton = document.getElementById('helpControl');
+  const closeButton = document.getElementById('closeHelpButton');
+  if (!dialog || !openButton || !closeButton) return;
+
+  openButton.onclick = (event) => {
+    event.preventDefault();
+    openHelpDialog(dialog);
+  };
+  closeButton.onclick = (event) => {
+    event.preventDefault();
+    closeHelpDialog(dialog);
+  };
+
+  if (!helpDialogBound) {
+    helpDialogBound = true;
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      closeHelpDialog(dialog);
+    });
+  }
+
+  let onboardingSeen = false;
+  try {
+    onboardingSeen = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === '1';
+  } catch {
+    onboardingSeen = false;
+  }
+  const helpQuery = URL_QUERY.get('help');
+  if (!helpOpenedThisSession && (helpQuery === '1' || (helpQuery !== '0' && !onboardingSeen))) {
+    helpOpenedThisSession = true;
+    openHelpDialog(dialog);
+  }
+}
+
+function openHelpDialog(dialog = document.getElementById('helpDialog')) {
+  if (!dialog || dialog.open) return;
+  helpWasPaused = gamePaused;
+  if (!gamePaused) togglePause(true, true);
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  document.getElementById('closeHelpButton')?.focus();
+}
+
+function closeHelpDialog(dialog = document.getElementById('helpDialog')) {
+  if (!dialog?.open) return;
+  try {
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
+  } catch {
+    // The help remains available when preference storage is blocked.
+  }
+  if (typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+  if (!helpWasPaused && gamePaused) togglePause(false, true);
+  document.getElementById('helpControl')?.focus();
 }
 
 function resolveTouchTuning(scene) {
@@ -3234,28 +3309,7 @@ function setTouchProfileMode(mode, scene) {
     // Ignore storage issues.
   }
   touchControls.tuning = resolveTouchTuning(scene || sceneRef);
-  layoutMobileActionButtons(scene || sceneRef);
-}
-
-function getMobileTopInsetPx() {
-  const viewportTop = Math.round(window.visualViewport?.offsetTop || 0);
-  return Math.max(8, viewportTop + 8);
-}
-
-function layoutMobileActionButtons(scene) {
-  const isMobile = isMobileRuntime();
-  if (!isMobile) return;
-  const width = Math.round(scene?.scale?.width || window.innerWidth || 960);
-  const size = MOBILE_BUTTON_SIZE_PX;
-  const rightX = width - 12 - Math.round(size * 0.5);
-  const top = getMobileTopInsetPx();
-  const gap = 10;
-  const y = top + Math.round(size * 0.5);
-  const buttonsRightToLeft = [touchProfileButton, audioToggleButton, pauseTouchButton, restartTouchButton].filter(Boolean);
-  buttonsRightToLeft.forEach((btn, idx) => {
-    const x = rightX - idx * (size + gap);
-    btn.setPosition(x, y);
-  });
+  syncActionButtonStates();
 }
 
 function syncAnimationTiming() {

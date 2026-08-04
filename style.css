@@ -19,17 +19,24 @@ body {
 }
 
 body {
-  display: grid;
-  place-items: center;
-  gap: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px;
 }
 
-.hud {
+.game-shell {
+  position: relative;
+  display: grid;
+  gap: 12px;
   width: min(960px, 100%);
+}
+
+.hud {
   background: var(--panel);
   border-radius: 12px;
-  padding: 10px 14px;
+  min-height: 72px;
+  padding: 10px 300px 10px 14px;
   box-shadow: 0 6px 24px #0f2a4f22;
 }
 
@@ -95,8 +102,57 @@ body {
   outline-offset: 3px;
 }
 
+.help-dialog ul {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding-left: 22px;
+  line-height: 1.4;
+}
+
+.help-dialog > button {
+  width: 100%;
+}
+
+.game-controls {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+}
+
+.game-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 2px solid #ffffffaa;
+  border-radius: 50%;
+  color: #fff;
+  background: #2a3a5ecc;
+  box-shadow: 0 3px 10px #0f2a4f33;
+  font: 700 1.35rem/1 "Segoe UI Symbol", "Segoe UI", sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.game-controls button:hover {
+  background: #39527fcc;
+}
+
+.game-controls button[aria-pressed="true"] {
+  background: #326b82ee;
+}
+
+.game-controls button:focus-visible {
+  outline: 3px solid #173f70;
+  outline-offset: 3px;
+}
+
 #game {
-  width: min(960px, 100%);
+  width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
@@ -129,6 +185,20 @@ canvas {
     display: none;
   }
 
+  .game-shell {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+  }
+
+  .game-controls {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    gap: 8px;
+  }
+
   #game {
     position: fixed;
     inset: 0;
@@ -137,5 +207,16 @@ canvas {
     aspect-ratio: auto;
     border-radius: 0;
     box-shadow: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .game-controls {
+    gap: 5px;
+  }
+
+  .game-controls button {
+    width: 44px;
+    height: 44px;
   }
 }

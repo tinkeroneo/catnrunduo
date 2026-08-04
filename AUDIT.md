@@ -1,12 +1,11 @@
 # Projektstatus und technisches Audit
 
-Stand: 2026-08-04
-Geprüfter Branch: `main` (`09043b2`, synchron zu `origin/main`)
-Arbeitsbaum vor dem Audit: sauber
+Stand: 2026-08-05
+Geprüfter Branch: `main`
 
 ## Kurzurteil
 
-`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Für eine belastbare Veröffentlichung fehlen vor allem eine fortsetzbare Langzeitprogression, eine schlankere Auslieferung, umfassendere Qualitätsprüfungen und eine wartbare Modulstruktur.
+`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression und Einstieg sind inzwischen abgesichert; für eine belastbare Veröffentlichung fehlen vor allem eine schlankere Auslieferung, umfassendere Qualitätsprüfungen und eine wartbarere Modulstruktur.
 
 Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wichtigste bestätigte Logikfehler lag im Levelgenerator: Der Zweig für zufällige Spring-Plattformen war unerreichbar. Dieser Fehler ist im ersten Maßnahmenblock behoben und automatisiert abgesichert worden.
 
@@ -16,21 +15,22 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | teilweise erledigt | `package.json`, einheitlicher `npm run check`, Syntaxprüfung und 6 Tests ergänzt; Lint und CI fehlen noch |
-| CAT-05 | begonnen | Levelgenerator als erstes reines, browserunabhängig testbares Modul aus `game.js` gelöst |
+| CAT-03 | teilweise erledigt | `package.json`, einheitlicher `npm run check`, Syntaxprüfung und 8 Tests ergänzt; Lint und CI fehlen noch |
+| CAT-05 | begonnen | Levelgenerator, Persistenz und HUD-Texte als reine, browserunabhängig testbare Module aus `game.js` gelöst |
+| CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
-| CAT-04, CAT-06 bis CAT-09, CAT-12 | offen | gemäß priorisierter Rest-Roadmap |
+| CAT-04, CAT-12 | offen | Asset-/Release-Pipeline sowie Betriebs- und Entwicklerdokumentation fehlen |
 
 ## Aktueller Aufbau
 
 - Statische Webanwendung ohne Buildschritt; ein minimales Paketmanifest dient ausschließlich den Qualitätsprüfungen.
 - Phaser 3.90.0 liegt vendort als `vendor/phaser.min.js` im Repository.
-- Fast die gesamte Spiellogik liegt weiterhin in `src/game.js`; der deterministische Levelgenerator wurde als erstes reines Modul ausgelagert.
+- Fast die gesamte Spiellogik liegt weiterhin in `src/game.js`; Levelgenerator, Persistenz und HUD-Texte sind als reine Module ausgelagert.
 - Level 1 und 2 sind handgebaut; Level 3 bis 52 werden deterministisch generiert.
 - Bosslevel erscheinen in Zehnerschritten.
 - Desktop: Pfeiltasten oder A/D, Sprung über Leertaste/W/Pfeil hoch, Pause über P, Neustart über R, Audio über M.
-- Mobile: Ziehen zum Laufen, Wischen zum Springen sowie Canvas-Schaltflächen.
-- Persistiert werden nur Bestzeit und Touch-Profil. Level, Punkte, Leben, Challenge-Streak und Audiozustand gehen beim Neuladen verloren.
+- Mobile: Ziehen zum Laufen, Wischen zum Springen sowie semantische DOM-Schaltflächen.
+- Persistiert werden Laufstand, Bestzeit, Touch-Profil, Audioauswahl und der Onboarding-Status; fehlerhafter oder blockierter Storage hat sichere Fallbacks.
 - Die Veröffentlichung ist als statische Seite mit eigener Domain vorbereitet (`CNAME`).
 
 ## Durchgeführte Prüfungen
@@ -39,11 +39,11 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|
 | Git-Status und Upstream | sauber, `main` folgt `origin/main` |
 | Qualitätsgate | `npm run check` erfolgreich |
-| JavaScript-Syntax | `node --check` für Generator und Spiel erfolgreich |
-| Generator-/Strukturtests | 2/2 erfolgreich; Level 3–52, Seeds, Plattformtypen und Bosskadenz |
+| JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
+| Modul-/Vertragstests | 8/8 erfolgreich; Generator, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
-| Mobile-Laufzeit, 390 × 844 | nach Änderungen erneut geladen und gerendert, HUD bleibt im Viewport |
+| Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Lint/CI | noch nicht vorhanden |
 
@@ -93,35 +93,35 @@ Maßnahme: In kleinen Schritten in zustandsarme Module trennen: Konfiguration, P
 
 Akzeptanz: Generator und Progression laufen ohne Browser/Phaser in Unit-Tests; `game.js` übernimmt überwiegend Komposition und Szenenlebenszyklus.
 
-#### CAT-06: Mobile Onboarding-Anleitung wird ausgeblendet
+#### CAT-06 · erledigt: Mobile Onboarding-Anleitung wurde ausgeblendet
 
 Unter 900 px blendet CSS die einzige explizite Steuerungsanleitung aus. Neue mobile Nutzer sehen sofort das Spiel und mehrere nicht beschriftete Symbole, erfahren aber nicht, dass Ziehen und Wischen erforderlich sind.
 
-Maßnahme: Kurzes interaktives Onboarding im Canvas oder als zugängliches Overlay; nach erfolgreicher Bewegung und erstem Sprung ausblenden und später über Hilfe erneut öffnen.
+Umsetzung: Beim ersten Start erscheint ein nativer Hilfedialog mit Ziel, Desktop-/Touch-Eingaben, Aktionen und Save-Verhalten. Der Lauf pausiert dahinter; `?` öffnet die Hilfe jederzeit erneut. Der Gesehen-Status wird fehlertolerant gespeichert und kann mit `?help=1` bewusst überschrieben werden.
 
 Akzeptanz: Ein Erstnutzer kann Laufen, Springen, Pause, Neustart, Audio und Touch-Profil ohne externe Erklärung finden.
 
-#### CAT-07: Canvas-Bedienung ist für assistive Technik nicht zugänglich
+#### CAT-07 · erledigt: Canvas-Bedienung war für assistive Technik nicht zugänglich
 
 Mobile Aktionsflächen existieren ausschließlich als Phaser-Canvas-Objekte. Sie besitzen keine semantischen Namen, Fokusreihenfolge oder Tastaturbedienung. Das Canvas hat ebenfalls keinen Alternativtext.
 
-Maßnahme: Semantische DOM-Buttons über dem Canvas verwenden oder unsichtbar synchronisierte Controls mit ARIA-Namen, Fokuszuständen und Tastaturaktionen bereitstellen. Zoom nicht einschränken.
+Umsetzung: Neustart, Pause, Audio, Touch-Profil und Hilfe sind echte DOM-Buttons mit mindestens 44 Pixeln, Fokusindikator, ARIA-Namen und synchronisierten Zuständen. Die Spielfläche besitzt eine Textalternative und verweist auf die sichtbare Steuerungshilfe; Browserzoom bleibt erlaubt.
 
 Akzeptanz: Alle Aktionen sind per Tastatur erreichbar und werden mit verständlichem Namen und Zustand von einem Screenreader angesagt.
 
 ### P2 – Produktpolitur und Betrieb
 
-#### CAT-08: Desktop-Layout verschenkt viel Vertikalraum
+#### CAT-08 · erledigt: Desktop-Layout verschenkte viel Vertikalraum
 
 Bei großen Viewports entsteht durch das Grid-Layout ein auffälliger leerer Bereich zwischen Anleitung und Spielfläche. Das Spiel wirkt dadurch kleiner und visuell vom Header getrennt.
 
-Maßnahme: Header und Spiel in einen gemeinsamen Container legen, Gap explizit steuern und die nutzbare Viewporthöhe berücksichtigen.
+Umsetzung: Header, Actions und Spielfläche liegen nun in einem gemeinsamen, zentrierten Container mit festem Abstand. Die Actions sitzen auf Desktop im Header und auf schmalen Viewports als sichere Overlay-Leiste.
 
-#### CAT-09: HUD-Sprache ist technisch und teilweise inkonsistent
+#### CAT-09 · erledigt: HUD-Sprache war technisch und teilweise inkonsistent
 
 Begriffe wie `Mod`, `Boost`, `Boss`, `Assist`, `Fokus` und `Challenge` stehen dicht in mehreren halbtransparenten Textzeilen. Deutsche Umlaute werden als `Maeuse`, `fuer` und `Druecke` ersetzt.
 
-Maßnahme: Informationen hierarchisieren, nur kontextrelevante Werte zeigen, verständliche Labels und korrekte deutsche Typografie verwenden.
+Umsetzung: Wiederholte HUD-Zeilen werden über ein getestetes Textmodul formatiert. `Mod` und `Challenge` heißen nun `Variante` und `Aufgabe`; Umlaute, Trennzeichen und Statusmeldungen sind konsistent und lesbarer.
 
 #### CAT-10 · erledigt: Riskanter Sofort-Neustart auf Mobile
 
@@ -147,20 +147,18 @@ Maßnahme: README und Asset-Lizenzinventar ergänzen; lokale Startanweisung und 
 
 ## Perspektiven
 
-- Entwickler: Starker Funktionsumfang, aber Monolith und fehlende Tests machen jede Änderung teuer und riskant.
-- UX: Der Kern ist unmittelbar spielbar; Langzeitprogression, Onboarding und Schutz vor versehentlichem Reset fehlen.
+- Entwickler: Starker Funktionsumfang und erste getestete Modulgrenzen; der verbleibende Monolith und die begrenzte Verhaltensabdeckung machen Änderungen weiterhin riskant.
+- UX: Kern, Fortsetzen und Einstieg sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen noch echte Durchlauftests.
 - UI: Pixelstil und Szenen sind konsistent, Informationshierarchie und Desktop-Flächennutzung benötigen Überarbeitung.
 - Anwender: Desktop-Steuerung ist sichtbar und verständlich; Mobileinstieg und 52-Level-Commitment sind die größten Hürden.
 - Betrieb: Statische Auslieferung ist einfach, doch Assetgewicht, fehlende Qualitätsgates und fehlende Reproduzierbarkeit verhindern verlässliche Releases.
 
 ## Empfohlene Abarbeitung
 
-1. Mobile Onboarding und zugängliche DOM-Controls umsetzen (`CAT-06`, `CAT-07`).
-2. Asset-Pipeline bereinigen, ungenutzte 30,32 MiB ausschließen und ein Transferbudget durchsetzen (`CAT-04`).
-3. Qualitätsgate um Lint, Progressions-/Persistenztests, dauerhaften Browser-Smoke-Test und CI ergänzen (`CAT-03`).
-4. `game.js` entlang getesteter Grenzen schrittweise modularisieren (`CAT-05`).
-5. HUD, Desktop-Layout und Texte polieren (`CAT-08`, `CAT-09`).
-6. README, Lizenzinventar und Release-Checkliste abschließen (`CAT-12`).
+1. Asset-Pipeline bereinigen, ungenutzte 30,32 MiB ausschließen und ein Transferbudget durchsetzen (`CAT-04`).
+2. Qualitätsgate um Lint, Progressions-/Persistenztests, dauerhaften Browser-Smoke-Test und CI ergänzen (`CAT-03`).
+3. `game.js` entlang getesteter Grenzen schrittweise modularisieren (`CAT-05`).
+4. README, Lizenzinventar und Release-Checkliste abschließen (`CAT-12`).
 
 ## Browser-Nachweise
 
@@ -168,9 +166,13 @@ Desktop mit ausgeliefertem HUD und Spielfläche:
 
 ![Cat Platformer Desktop](docs/audit/desktop.png)
 
-Mobiler Hochkant-Viewport; die fehlende sichtbare Gestenerklärung bleibt als `CAT-06` offen:
+Schmale Hochkantansicht mit den fünf semantischen Actions:
 
 ![Cat Platformer Mobile](docs/audit/mobile.png)
+
+First-run-Hilfe in der schmalen Hochkantansicht:
+
+![Cat Platformer Mobile Onboarding](docs/audit/mobile-onboarding.png)
 
 ## Nicht geprüft / Restrisiken
 

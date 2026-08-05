@@ -5,7 +5,7 @@ Geprüfter Branch: `main`
 
 ## Kurzurteil
 
-`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind abgesichert. Ein zweiter Produktblock legt nun Mission, Aufgabe und Combo offen und verstärkt Sammeln, Stomps, Treffer sowie Levelabschluss mit unterscheidbarem Feedback.
+`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind abgesichert. Mission, Aufgabe und Combo sind sichtbar; ein bewusster Jagdbericht fasst jeden Levelabschluss zusammen und optionale Goldmaus-Routen erhöhen den Wiederspielwert.
 
 Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wichtigste bestätigte Logikfehler lag im Levelgenerator: Der Zweig für zufällige Spring-Plattformen war unerreichbar. Dieser Fehler ist im ersten Maßnahmenblock behoben und automatisiert abgesichert worden.
 
@@ -15,7 +15,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | erledigt | ESLint ohne Warnungen, 12 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
+| CAT-03 | erledigt | ESLint ohne Warnungen, 14 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
 | CAT-05 | fortgeschritten | Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte als reine testbare Module ausgelagert; Szenendatei bleibt groß |
 | CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
@@ -29,6 +29,8 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | CAT-13 | erledigt | responsives Mission-HUD zeigt Levelweg, Thema, Mäuse, Punkte, Leben und Aufgabenfortschritt auf einen Blick |
 | CAT-14 | erledigt | dauerhaft sichtbares Flow-Zeitfenster macht Multiplikator und drohenden Ablauf verständlich |
 | CAT-15 | erledigt | Aktionsbursts, Punktetexte, SFX, reduzierte Kamerareaktionen und Abschlussfeuerwerk geben jeder Kernaktion eine eigene Antwort |
+| CAT-16 | erledigt | zugänglicher Jagdbericht zeigt Aufgabenstatus, Mäuse, Zeit, Treffer, Flow, alle Boni und das nächste Level; die Einführungsaufgabe zählt neutral |
+| CAT-17 | erledigt | drei deterministische Entdeckungsrouten verteilen je vier optionale Goldmäuse und einen separaten Komplettbonus auf Level 3 bis 52 |
 
 ## Aktueller Aufbau
 
@@ -51,13 +53,13 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Dependency-Audit | `npm audit` erfolgreich; 0 bekannte Schwachstellen |
 | Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
-| Modul-/Vertragstests | 12/12 erfolgreich; Generator, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
+| Modul-/Vertragstests | 14/14 erfolgreich; Generator, Entdeckungsrouten, Abschlussbericht, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
-| Release-Build | 17 Runtime-Dateien, 15.521.207 Bytes bei 16-MiB-Budget |
+| Release-Build | 17 Runtime-Dateien, 15.536.479 Bytes bei 16-MiB-Budget |
 | CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build auf Zielcommit erfolgreich |
 
 ## Befunde
@@ -161,14 +163,14 @@ Umsetzung: README dokumentiert Start, Steuerung, Query-Parameter, Architektur un
 ## Perspektiven
 
 - Entwickler: Reine Module, aktive Gates und ein getesteter DOM-Vertrag senken das Risiko; der verbleibende Szenenmonolith bleibt der größte technische Hebel.
-- UX: Kern, Fortsetzen, Aufgabe und Combo sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen echte Durchlauftests.
+- UX: Kern, Fortsetzen, Aufgabe, Combo, Jagdbericht und optionale Entdeckungen sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen echte Durchlauftests.
 - UI: Mission, Laufwerte und Einstellungen besitzen eine klare Hierarchie; Pixelwelt und gläserne Oberfläche bleiben auf Desktop und Hochkant voneinander unterscheidbar.
-- Anwender: Ziel, nächster Fortschritt und direkte Aktionsantwort sind sichtbar; Mobileinstieg ist abgesichert, Langzeitmotivation bleibt der nächste Produkthebel.
+- Anwender: Ziel, nächster Fortschritt, Goldroute und direkte Aktionsantwort sind sichtbar; der Jagdbericht gibt vor jedem nächsten Level eine bewusste Atempause.
 - Betrieb: Allowlist-Build, Größenbudget, CI, Browser-Smoke und Release-Dokumentation schaffen einen reproduzierbaren Pfad; Rechte- und Langstreckenprüfung bleiben manuell.
 
 ## Verbleibende Abarbeitung
 
-1. Levelabschlusskarte mit Aufgabenbonus, Serienfortschritt und nächstem Ziel umsetzen.
+1. Levelauswahl/Abzeichen für erreichte Level, Bestzeiten, Aufgaben und Entdeckungen konzipieren.
 2. `game.js` entlang getesteter Grenzen weiter modularisieren (`CAT-05`), bevorzugt Entitäten, Effekte und Audio.
 3. Beide Musikdateien für Webauslieferung neu encodieren und das 16-MiB-Budget anschließend deutlich senken.
 4. Vollständigen 52-Level-Lauf, physisches Touchgerät, Screenreader sowie Firefox/Safari manuell prüfen.
@@ -177,7 +179,7 @@ Umsetzung: README dokumentiert Start, Steuerung, Query-Parameter, Architektur un
 
 ## Browser-Nachweise
 
-Aktuelle Desktopansicht mit Mission, Aufgabe und Flow:
+Aktuelle Desktopansicht mit Mission, Aufgabe, Flow und Entdeckungsroute:
 
 ![Cat Platformer Produktansicht Desktop](docs/audit/product-desktop.png)
 

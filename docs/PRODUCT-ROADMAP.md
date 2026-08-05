@@ -21,16 +21,16 @@ Stand: 2026-08-05
 | P0 | Mission-HUD | Levelweg, Mäuse, Leben, Punkte und Aufgabenfortschritt bilden eine klare visuelle Hierarchie | umgesetzt |
 | P0 | Combo-Kommunikation | Zeitfenster und Multiplikator werden dauerhaft sichtbar statt nur kurz eingeblendet | umgesetzt |
 | P0 | Game Feel | Sammelbursts, Punktetexte, kontrollierte Kamerareaktionen und Abschlussfeuerwerk verstärken Aktionen | umgesetzt |
-| P1 | Levelabschlusskarte | Bonus, Aufgabe und Serienfortschritt werden vor dem nächsten Level verständlich zusammengefasst | nächste Iteration |
-| P1 | Entdeckungen | optionale Nebenrouten, sichtbare Geheimnisse und riskantere Mäuseketten erhöhen Wiederspielwert | Backlog |
+| P1 | Levelabschlusskarte | Bonus, Aufgabe, Leistung, Entdeckungsbonus und nächstes Level werden vor dem bewussten Weitergehen zusammengefasst | umgesetzt |
+| P1 | Entdeckungen | deterministische Goldmaus-Nebenrouten ab Level 3 erhöhen Risiko, Belohnung und Wiederspielwert, ohne den Abschluss zu blockieren | umgesetzt |
 | P1 | Levelauswahl/Abzeichen | bereits erreichte Level, Bestzeit und Aufgabenstatus werden außerhalb des Runs vergleichbar | Backlog |
 | P2 | Zusätzliche Animationen | Landung, Bremsen, Treffer und Sieg erhalten eigene Sprite-/Effektzustände | benötigt Assetarbeit |
 | P2 | Tägliche Route | reproduzierbarer Seed mit Tageswertung schafft einen kurzen Wiederkehrgrund | Backlog |
 
 ## Erfolgskriterien dieser Iteration
 
-- Spielziel und aktuelle Aufgabe sind ohne Hilfe-Dialog ablesbar.
-- Das Combo-Zeitfenster ist verständlich und reagiert auf Sammeln sowie Ablauf.
-- Sammeln, Stompen, Schaden und Levelabschluss fühlen sich visuell unterschiedlich an.
-- Die neue Oberfläche bleibt auf schmalen Viewports bedienbar und zoomfähig.
+- Levelabschluss, Aufgabenbonus, Serienbonus und nächstes Ziel sind vor dem Weitergehen lesbar.
+- Goldmaus-Routen sind sichtbar, optional und für Level 3 bis 52 deterministisch abgesichert.
+- Die Einführungsaufgabe wird im Abschlussbericht neutral statt fälschlich als Fehlschlag gewertet.
+- Oberfläche, Abschlussdialog und Entdeckungs-HUD bleiben auf schmalen Viewports bedienbar und zoomfähig.
 - Automatische Tests, Browser-Smoke und Release-Budget bleiben grün.

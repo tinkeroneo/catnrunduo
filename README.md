@@ -25,7 +25,7 @@ Neustart, Pause, Audio, Touch-Profil und Hilfe sind zusätzlich als benannte But
 ## Entwicklung und Qualität
 
 ```powershell
-npm run check   # ESLint, 12 Node-Tests und Headless-Chrome-Smoke-Test
+npm run check   # ESLint, 14 Node-Tests und Headless-Chrome-Smoke-Test
 npm run build   # erzeugt das manifestgesteuerte Release in dist/
 ```
 

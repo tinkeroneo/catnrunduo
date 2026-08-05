@@ -1,6 +1,6 @@
 # Cat Platformer
 
-Cat Platformer ist ein browserbasiertes Phaser-Plattformspiel mit 52 Levels, Bossen, Levelvarianten, Aufgaben, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und fortsetzbaren Läufen.
+Cat Platformer ist ein browserbasiertes Phaser-Plattformspiel mit 52 Levels, Bossen, Levelvarianten, Aufgaben, adaptiver Schwierigkeit und fortsetzbaren Läufen. Ein sichtbares Mission-HUD, Flow-Zeitfenster und unterscheidbares Aktionsfeedback machen die Mäusejagd auf Desktop und Touch unmittelbar lesbar.
 
 ## Lokal starten
 

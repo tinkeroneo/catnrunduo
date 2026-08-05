@@ -18,9 +18,9 @@ Stand: 2026-08-05
 
 | Priorität | Thema | Konkreter Nutzen | Status |
 |---|---|---|---|
-| P0 | Mission-HUD | Levelweg, Mäuse, Leben, Punkte und Aufgabenfortschritt bilden eine klare visuelle Hierarchie | diese Iteration |
-| P0 | Combo-Kommunikation | Zeitfenster und Multiplikator werden dauerhaft sichtbar statt nur kurz eingeblendet | diese Iteration |
-| P0 | Game Feel | Sammelbursts, Punktetexte, kontrollierte Kamerareaktionen und Abschlussfeuerwerk verstärken Aktionen | diese Iteration |
+| P0 | Mission-HUD | Levelweg, Mäuse, Leben, Punkte und Aufgabenfortschritt bilden eine klare visuelle Hierarchie | umgesetzt |
+| P0 | Combo-Kommunikation | Zeitfenster und Multiplikator werden dauerhaft sichtbar statt nur kurz eingeblendet | umgesetzt |
+| P0 | Game Feel | Sammelbursts, Punktetexte, kontrollierte Kamerareaktionen und Abschlussfeuerwerk verstärken Aktionen | umgesetzt |
 | P1 | Levelabschlusskarte | Bonus, Aufgabe und Serienfortschritt werden vor dem nächsten Level verständlich zusammengefasst | nächste Iteration |
 | P1 | Entdeckungen | optionale Nebenrouten, sichtbare Geheimnisse und riskantere Mäuseketten erhöhen Wiederspielwert | Backlog |
 | P1 | Levelauswahl/Abzeichen | bereits erreichte Level, Bestzeit und Aufgabenstatus werden außerhalb des Runs vergleichbar | Backlog |

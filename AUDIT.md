@@ -5,7 +5,7 @@ Geprüfter Branch: `main`
 
 ## Kurzurteil
 
-`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind inzwischen abgesichert; vor einem öffentlichen Release bleiben vor allem weitere Modularisierung sowie manuelle Langstrecken-, Geräte-, Browser- und Rechteprüfungen.
+`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind abgesichert. Ein zweiter Produktblock legt nun Mission, Aufgabe und Combo offen und verstärkt Sammeln, Stomps, Treffer sowie Levelabschluss mit unterscheidbarem Feedback.
 
 Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wichtigste bestätigte Logikfehler lag im Levelgenerator: Der Zweig für zufällige Spring-Plattformen war unerreichbar. Dieser Fehler ist im ersten Maßnahmenblock behoben und automatisiert abgesichert worden.
 
@@ -22,11 +22,19 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | CAT-04 | erledigt | manifestgesteuerter 15,5-MB-Release schließt rund 40 MB Quellen/Altassets aus; Musik lädt erst nach Interaktion |
 | CAT-12 | erledigt | README, Asset-Inventar, Release-Checkliste, lokaler Server und CI ergänzt |
 
+## Umsetzungsstand des Produktblocks
+
+| ID | Status | Ergebnis |
+|---|---|---|
+| CAT-13 | erledigt | responsives Mission-HUD zeigt Levelweg, Thema, Mäuse, Punkte, Leben und Aufgabenfortschritt auf einen Blick |
+| CAT-14 | erledigt | dauerhaft sichtbares Flow-Zeitfenster macht Multiplikator und drohenden Ablauf verständlich |
+| CAT-15 | erledigt | Aktionsbursts, Punktetexte, SFX, reduzierte Kamerareaktionen und Abschlussfeuerwerk geben jeder Kernaktion eine eigene Antwort |
+
 ## Aktueller Aufbau
 
 - Statische Webanwendung mit manifestgesteuertem Allowlist-Build und 16-MiB-Transferbudget.
 - Phaser 3.90.0 liegt vendort als `vendor/phaser.min.js` im Repository.
-- Der Phaser-Szenenlebenszyklus liegt weiterhin in `src/game.js`; Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte sind als reine Module ausgelagert.
+- Der Phaser-Szenenlebenszyklus liegt weiterhin in `src/game.js`; Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte sind als reine Module ausgelagert. Das semantische DOM-HUD spiegelt nur relevante Laufzustände und respektiert reduzierte Bewegung.
 - Level 1 und 2 sind handgebaut; Level 3 bis 52 werden deterministisch generiert.
 - Bosslevel erscheinen in Zehnerschritten.
 - Desktop: Pfeiltasten oder A/D, Sprung über Leertaste/W/Pfeil hoch, Pause über P, Neustart über R, Audio über M.
@@ -49,7 +57,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
-| Release-Build | 17 Runtime-Dateien, 15.507.831 Bytes bei 16-MiB-Budget |
+| Release-Build | 17 Runtime-Dateien, 15.521.207 Bytes bei 16-MiB-Budget |
 | CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build auf Zielcommit erfolgreich |
 
 ## Befunde
@@ -78,7 +86,7 @@ Akzeptanz: erfüllt und mit Storage-/UI-Vertragstests abgesichert.
 
 Zu Auditbeginn gab es weder Paketmanifest noch Test-, Lint- oder CI-Konfiguration. Generator, Challenge-Auswertung, Progression, Persistenz und Restart-/Pause-Zustände waren vollständig ungesichert.
 
-Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Elf Node-Tests sichern Generator, Progression/Aufgaben, Persistenz, Neustart, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
+Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Zwölf Node-Tests sichern Generator, Progression/Aufgaben, Persistenz, Neustart, Mission-HUD, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
 
 Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests und einen Start-/Input-/Restart-Smoke-Test; CI führt denselben Befehl aus.
 
@@ -86,7 +94,7 @@ Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests u
 
 Das Projekt umfasst rund 56 MB. Allein Audio belegt 44,06 MiB; 30,32 MiB davon sind im aktuellen Manifest und Fallback nicht referenziert. Die potenziell verwendeten Audiodateien belegen weitere 13,74 MiB. Zusätzlich liegen bearbeitbare `.piskel`-Quellen im auszuliefernden Baum.
 
-Umsetzung: `npm run build` kopiert ausschließlich Runtime-Dateien und die in `assets-manifest.json` referenzierten Assets. Das Ergebnis enthält 17 Dateien mit 15.507.831 Bytes statt des rund 56-MB-Quellbaums und bricht oberhalb von 16 MiB ab. Nur die aktive Musikschicht wird mit `preload="none"` angelegt und erst infolge einer Nutzergeste abgespielt. Eine weitere Audiokompression bleibt ein sinnvoller späterer Optimierungsschritt.
+Umsetzung: `npm run build` kopiert ausschließlich Runtime-Dateien und die in `assets-manifest.json` referenzierten Assets. Das Ergebnis enthält 17 Dateien mit 15.521.207 Bytes statt des rund 56-MB-Quellbaums und bricht oberhalb von 16 MiB ab. Nur die aktive Musikschicht wird mit `preload="none"` angelegt und erst infolge einer Nutzergeste abgespielt. Eine weitere Audiokompression bleibt ein sinnvoller späterer Optimierungsschritt.
 
 Akzeptanz: Definiertes Transferbudget für den Erststart; keine unreferenzierten Dateien im Deploy-Artefakt; Audio lädt erst nach Wahl beziehungsweise Nutzerinteraktion.
 
@@ -152,29 +160,30 @@ Umsetzung: README dokumentiert Start, Steuerung, Query-Parameter, Architektur un
 
 ## Perspektiven
 
-- Entwickler: Starker Funktionsumfang und erste getestete Modulgrenzen; der verbleibende Monolith und die begrenzte Verhaltensabdeckung machen Änderungen weiterhin riskant.
-- UX: Kern, Fortsetzen und Einstieg sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen noch echte Durchlauftests.
-- UI: Pixelstil und Szenen sind konsistent, Informationshierarchie und Desktop-Flächennutzung benötigen Überarbeitung.
-- Anwender: Desktop-Steuerung ist sichtbar und verständlich; Mobileinstieg und 52-Level-Commitment sind die größten Hürden.
+- Entwickler: Reine Module, aktive Gates und ein getesteter DOM-Vertrag senken das Risiko; der verbleibende Szenenmonolith bleibt der größte technische Hebel.
+- UX: Kern, Fortsetzen, Aufgabe und Combo sind verständlich; 52 Levels bleiben ein langes Commitment und spätere Progressionsbeats brauchen echte Durchlauftests.
+- UI: Mission, Laufwerte und Einstellungen besitzen eine klare Hierarchie; Pixelwelt und gläserne Oberfläche bleiben auf Desktop und Hochkant voneinander unterscheidbar.
+- Anwender: Ziel, nächster Fortschritt und direkte Aktionsantwort sind sichtbar; Mobileinstieg ist abgesichert, Langzeitmotivation bleibt der nächste Produkthebel.
 - Betrieb: Allowlist-Build, Größenbudget, CI, Browser-Smoke und Release-Dokumentation schaffen einen reproduzierbaren Pfad; Rechte- und Langstreckenprüfung bleiben manuell.
 
 ## Verbleibende Abarbeitung
 
-1. `game.js` entlang getesteter Grenzen weiter modularisieren (`CAT-05`), bevorzugt Progression/Challenges und Audio.
-2. Beide Musikdateien für Webauslieferung neu encodieren und das 16-MiB-Budget anschließend deutlich senken.
-3. Vollständigen 52-Level-Lauf, physisches Touchgerät, Screenreader sowie Firefox/Safari manuell prüfen.
-4. Urheber, Lizenzen und Freigaben der ausgelieferten Sprites, Musik, Phaser-Datei und des Favicons belegen.
-5. Nach dem Deployment einen Smoke-Test gegen die veröffentlichte `dist/`-Version durchführen.
+1. Levelabschlusskarte mit Aufgabenbonus, Serienfortschritt und nächstem Ziel umsetzen.
+2. `game.js` entlang getesteter Grenzen weiter modularisieren (`CAT-05`), bevorzugt Entitäten, Effekte und Audio.
+3. Beide Musikdateien für Webauslieferung neu encodieren und das 16-MiB-Budget anschließend deutlich senken.
+4. Vollständigen 52-Level-Lauf, physisches Touchgerät, Screenreader sowie Firefox/Safari manuell prüfen.
+5. Urheber, Lizenzen und Freigaben der ausgelieferten Sprites, Musik, Phaser-Datei und des Favicons belegen.
+6. Nach dem Deployment einen Smoke-Test gegen die veröffentlichte `dist/`-Version durchführen.
 
 ## Browser-Nachweise
 
-Desktop mit ausgeliefertem HUD und Spielfläche:
+Aktuelle Desktopansicht mit Mission, Aufgabe und Flow:
 
-![Cat Platformer Desktop](docs/audit/desktop.png)
+![Cat Platformer Produktansicht Desktop](docs/audit/product-desktop.png)
 
-Schmale Hochkantansicht mit den fünf semantischen Actions:
+Aktuelle Hochkantansicht mit Mission und fünf semantischen Actions:
 
-![Cat Platformer Mobile](docs/audit/mobile.png)
+![Cat Platformer Produktansicht Mobile](docs/audit/product-mobile.png)
 
 First-run-Hilfe in der schmalen Hochkantansicht:
 

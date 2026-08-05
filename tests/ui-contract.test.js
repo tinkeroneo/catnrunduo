@@ -114,3 +114,15 @@ test('world themes change the feel of movement and landing feedback', () => {
   assert.match(game, /function updateLandingFeedback\(\)/);
   assert.match(game, /spawnActionBurst\(player\.x, player\.body\.bottom/);
 });
+
+test('boss hunts rotate through realms and telegraph distinct phase-two charges', () => {
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  for (const move of ['Wurzelsturm', 'Gezeitenlauf', 'Sandspurt', 'Felsdonner', 'Neonhatz']) {
+    assert.match(game, new RegExp(move));
+  }
+  assert.match(game, /const bossIndex = \(Math\.floor\(level \/ BOSS_LEVEL_INTERVAL\) - 1\) % THEMES\.length/);
+  assert.match(game, /phaseTick === telegraphAt/);
+  assert.match(game, /triggerSfx\('boss_warning'\)/);
+  assert.match(game, /Bossmanöver · \$\{getBossBehavior\(\)\.label\}/);
+});

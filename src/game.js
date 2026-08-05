@@ -194,6 +194,13 @@ const THEME_ACCENTS = {
   mountain: '#becbf1',
   city: '#f0a7cf',
 };
+const BOSS_BEHAVIORS = Object.freeze({
+  forest: { label: 'Wurzelsturm', cycle: 210, chargeStart: 156, chargeEnd: 188, chargeMul: 1.48, tint: 0xff9c72 },
+  ocean: { label: 'Gezeitenlauf', cycle: 228, chargeStart: 166, chargeEnd: 202, chargeMul: 1.42, tint: 0x72d6ee },
+  desert: { label: 'Sandspurt', cycle: 190, chargeStart: 132, chargeEnd: 166, chargeMul: 1.62, tint: 0xffb85c },
+  mountain: { label: 'Felsdonner', cycle: 244, chargeStart: 184, chargeEnd: 220, chargeMul: 1.55, tint: 0xbecbf1 },
+  city: { label: 'Neonhatz', cycle: 176, chargeStart: 124, chargeEnd: 154, chargeMul: 1.7, tint: 0xf0a7cf },
+});
 
 const config = {
   type: Phaser.AUTO,
@@ -1042,6 +1049,7 @@ function create() {
     boss.setData('hp', levelConfig.boss.hp);
     boss.setData('maxHp', levelConfig.boss.hp);
     boss.setData('phase2', false);
+    boss.setData('phaseTick', 0);
     boss.setData('minX', levelConfig.boss.minX);
     boss.setData('maxX', levelConfig.boss.maxX);
     const bossSpeed = Math.round(levelConfig.boss.speed * getThemeGameplay().enemySpeedMul);
@@ -1474,9 +1482,10 @@ function hitEnemy(playerSprite, enemy) {
       enemy.setData('hp', nextHp);
       const maxHp = enemy.getData('maxHp') ?? nextHp;
       const phase2Threshold = Math.ceil(maxHp * 0.5);
-      if (!enemy.getData('phase2') && nextHp > 0 && nextHp <= phase2Threshold) {
+      const phaseChanged = !enemy.getData('phase2') && nextHp > 0 && nextHp <= phase2Threshold;
+      if (phaseChanged) {
         enemy.setData('phase2', true);
-        setStatus('Boss Phase 2! Vorsicht!', 1700);
+        enemy.setData('phaseTick', 0);
       }
       playerSprite.setVelocityY(-460);
       const bossPoints = Math.round(getThemeGameplay().stompPoints * 1.6);
@@ -1489,6 +1498,8 @@ function hitEnemy(playerSprite, enemy) {
       if (nextHp <= 0) {
         enemy.disableBody(true, true);
         setStatus('Boss besiegt! Zur Flagge!', 2400);
+      } else if (phaseChanged) {
+        setStatus(`Boss Phase 2 · ${getBossBehavior().label}!`, 1900);
       } else {
         setStatus('Treffer! Boss geschwaecht.', 1400);
       }
@@ -1582,6 +1593,21 @@ function updateEnemies() {
     if (enemy.x >= maxX) dir = -1;
     if (isBossPhase2) {
       speed = Math.round(speed * BOSS_PHASE2_SPEED_MUL);
+      const behavior = getBossBehavior();
+      const phaseTick = ((enemy.getData('phaseTick') || 0) + 1) % behavior.cycle;
+      const telegraphAt = behavior.chargeStart - 24;
+      enemy.setData('phaseTick', phaseTick);
+      if (phaseTick === telegraphAt) {
+        setStatus(`${behavior.label}: Sprung vorbereiten!`, 1200);
+        spawnActionBurst(enemy.x, enemy.y + 8, behavior.tint, 10);
+        triggerSfx('boss_warning');
+      }
+      if (phaseTick >= telegraphAt && phaseTick < behavior.chargeStart) {
+        speed = Math.round(speed * 0.32);
+      } else if (phaseTick >= behavior.chargeStart && phaseTick <= behavior.chargeEnd) {
+        speed = Math.round(speed * behavior.chargeMul);
+        if (player && enemy.x > minX + 30 && enemy.x < maxX - 30) dir = player.x >= enemy.x ? 1 : -1;
+      }
     }
 
     enemy.setData('isChasing', isChasing);
@@ -1590,7 +1616,7 @@ function updateEnemies() {
     enemy.setVelocityX(speed * dir);
     enemy.setFlipX(dir < 0);
     if (isBossPhase2) {
-      enemy.setTint(BOSS_PHASE2_TINT);
+      enemy.setTint(getBossBehavior().tint || BOSS_PHASE2_TINT);
     } else if (enemyType === 'hunter') {
       enemy.setTint(isChasing ? HUNTER_TINT_CHASE : HUNTER_TINT_IDLE);
     } else {
@@ -2138,6 +2164,11 @@ function onSfxEvent(name) {
     playTone(170, 0.11, 'sawtooth', 0.04, 0);
     return;
   }
+  if (name === 'boss_warning') {
+    playTone(240, 0.08, 'sawtooth', 0.035, 0);
+    playTone(180, 0.1, 'square', 0.03, 0.09);
+    return;
+  }
   if (name === 'level_clear') {
     [620, 780, 930, 1240].forEach((frequency, index) => {
       playTone(frequency, 0.1, 'triangle', 0.045, index * 0.07);
@@ -2497,7 +2528,15 @@ function setStatus(message, durationMs = 2200) {
 }
 
 function getThemeForLevel(level) {
+  if (level % BOSS_LEVEL_INTERVAL === 0) {
+    const bossIndex = (Math.floor(level / BOSS_LEVEL_INTERVAL) - 1) % THEMES.length;
+    return THEMES[bossIndex];
+  }
   return THEMES[(Math.max(1, level) - 1) % THEMES.length];
+}
+
+function getBossBehavior(themeKey = currentTheme?.key) {
+  return BOSS_BEHAVIORS[themeKey] || BOSS_BEHAVIORS.forest;
 }
 
 function isMobileRuntime() {
@@ -3042,6 +3081,7 @@ function showLevelIntroTransition() {
     `Aufgabe · ${currentLevelChallenge?.label || 'Aufwärmen'}`,
     getThemeGameplay().cue,
   ];
+  if (currentLevel % BOSS_LEVEL_INTERVAL === 0) detailParts.push(`Bossmanöver · ${getBossBehavior().label}`);
   if (currentDiscoveryRoute) detailParts.push(`Entdeckung · ${currentDiscoveryRoute.label}`);
   const root = setSceneTransitionContent({
     kicker: currentLevel % BOSS_LEVEL_INTERVAL === 0 ? 'Bossjagd' : `Jagd ${currentLevel} von ${MAX_LEVEL}`,

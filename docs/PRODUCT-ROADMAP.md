@@ -27,6 +27,7 @@ Stand: 2026-08-06
 | P1 | Sichere Übergänge | Physik und Spielzeit pausieren; wichtige Etappen laufen filmisch, normale kompakt und beide sind überspringbar | umgesetzt |
 | P1 | Reviercharakter | Wald, Ozean, Wüste, Berg und Stadt verändern Schwerkraft, Lauf- oder Sprunggefühl nachvollziehbar | umgesetzt |
 | P1 | Levelauswahl/Abzeichen | erreichte Level, Bestzeit, Aufgabe und Entdeckung werden auf einer persistenten 52-Etappen-Karte vergleichbar | umgesetzt |
+| P1 | Revierbosse | die fünf Bossjagden rotieren durch alle Reviere und kündigen in Phase zwei ein eigenes, unterschiedlich getaktetes Sturmmanöver an | umgesetzt |
 | P2 | Zusätzliche Animationen | Landungen besitzen bereits Squash, Partikel und optionalen Kameraimpuls; Bremsen, Treffer und Sieg brauchen eigene Spritezustände | teilweise umgesetzt; weitere Assetarbeit |
 | P2 | Tägliche Route | reproduzierbarer Seed mit Tageswertung schafft einen kurzen Wiederkehrgrund | Backlog |
 

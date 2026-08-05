@@ -226,6 +226,7 @@ let gameWon = false;
 let gameOver = false;
 let gamePaused = false;
 let mice;
+let discoveryMice;
 let enemies;
 let checkpoints;
 let catnips;
@@ -237,6 +238,10 @@ let lifePickups;
 let hiddenLifeBlocks;
 let miceTotal = 0;
 let miceCollected = 0;
+let discoveryMiceCollected = 0;
+let discoveryMiceTotal = 0;
+let discoveryBonusEarned = 0;
+let currentDiscoveryRoute = null;
 let mouseComboCount = 0;
 let mouseComboExpiresAt = 0;
 let totalMiceCollected = 0;
@@ -795,6 +800,10 @@ function create() {
   }
 
   const levelConfig = getLevelConfig(currentLevel);
+  currentDiscoveryRoute = levelConfig.discoveryRoute || null;
+  discoveryMiceCollected = 0;
+  discoveryMiceTotal = currentDiscoveryRoute?.mice?.length || 0;
+  discoveryBonusEarned = 0;
   levelConfig.platforms.forEach((entry) => {
     const p = normalizePlatformEntry(entry);
     if (p.type === 'spring') {
@@ -941,6 +950,27 @@ function create() {
   mouseComboCount = 0;
   mouseComboExpiresAt = 0;
 
+  discoveryMice = this.physics.add.staticGroup();
+  (currentDiscoveryRoute?.mice || []).forEach(([x, y]) => {
+    const mouse = discoveryMice.create(x, y, mouseTextureKey);
+    if (useSheetMouse) {
+      mouse.setScale(0.12);
+      applyColliderProfile(mouse, COLLIDER_PROFILES.mouseSheet, true);
+    } else {
+      applyColliderProfile(mouse, COLLIDER_PROFILES.mouseFallback, true);
+    }
+    mouse.setTint(0xffd05c);
+    mouse.setData('discoveryMouse', true);
+    this.tweens.add({
+      targets: mouse,
+      alpha: { from: 0.72, to: 1 },
+      scale: useSheetMouse ? { from: 0.115, to: 0.13 } : { from: 0.92, to: 1.08 },
+      duration: reducedMotionPreferred() ? 1 : 620,
+      yoyo: true,
+      repeat: reducedMotionPreferred() ? 0 : -1,
+    });
+  });
+
   enemies = this.physics.add.group({ allowGravity: true, collideWorldBounds: true });
   levelConfig.enemies.forEach((spawn) => {
     const enemySpeed = Math.round(spawn.speed * getThemeGameplay().enemySpeedMul);
@@ -1029,6 +1059,7 @@ function create() {
   this.physics.add.collider(player, hiddenLifeBlocks, hitHiddenLifeBlock, null, this);
 
   this.physics.add.overlap(player, mice, collectMouse, canCollectMouse, this);
+  this.physics.add.overlap(player, discoveryMice, collectDiscoveryMouse, canCollectMouse, this);
   this.physics.add.overlap(player, flag, reachFlag, null, this);
   this.physics.add.overlap(player, enemies, hitEnemy, null, this);
   this.physics.add.overlap(player, checkpoints, touchCheckpoint, null, this);
@@ -1199,31 +1230,42 @@ function create() {
   } else {
     const assistPart = adaptiveAssistActive ? ' | Assist aktiv' : '';
     const pressurePart = adaptivePressureActive ? ' | Fokus aktiv' : '';
+    const discoveryPart = currentDiscoveryRoute ? ` · Entdeckung: ${currentDiscoveryRoute.label}` : '';
     setStatus(
-      `Level ${currentLevel}: Variante ${currentLevelModifier.label} · Aufgabe: ${currentLevelChallenge.label}${assistPart}${pressurePart}`,
+      `Level ${currentLevel}: Variante ${currentLevelModifier.label} · Aufgabe: ${currentLevelChallenge.label}${discoveryPart}${assistPart}${pressurePart}`,
       3400
     );
   }
   syncDomRunHud();
 }
 
-function collectMouse(playerSprite, mouse) {
+function collectMouse(_playerSprite, mouse) {
+  collectMouseReward(mouse, false);
+}
+
+function collectDiscoveryMouse(_playerSprite, mouse) {
+  collectMouseReward(mouse, true);
+}
+
+function collectMouseReward(mouse, isDiscovery) {
   const spawnX = mouse.x;
   const spawnY = mouse.y;
   mouse.disableBody(true, true);
-  miceCollected += 1;
+  if (isDiscovery) discoveryMiceCollected += 1;
+  else miceCollected += 1;
   totalMiceCollected += 1;
   const now = sceneRef.time.now;
   const comboActive = now <= mouseComboExpiresAt;
   mouseComboCount = comboActive ? Math.min(mouseComboCount + 1, MOUSE_COMBO_MAX_STACK) : 1;
   mouseComboExpiresAt = now + MOUSE_COMBO_WINDOW_MS;
   const comboMul = getMouseComboMultiplier(mouseComboCount);
-  const mousePoints = Math.round(getThemeGameplay().mousePoints * comboMul);
+  const mousePoints = Math.round(getThemeGameplay().mousePoints * comboMul * (isDiscovery ? 1.5 : 1));
   score += mousePoints;
   if (mouseComboCount > levelMaxCombo) levelMaxCombo = mouseComboCount;
   scoreText.setText(getHudScoreSummary());
-  spawnActionBurst(spawnX, spawnY, mouseComboCount >= 5 ? 0xffa94d : 0xffe07a, 8 + Math.min(5, mouseComboCount));
-  spawnFloatingPoints(spawnX, spawnY - 12, `+${mousePoints}`, mouseComboCount >= 5 ? '#ffd06b' : '#fff4b0');
+  const rewardColor = isDiscovery ? 0xffc83d : mouseComboCount >= 5 ? 0xffa94d : 0xffe07a;
+  spawnActionBurst(spawnX, spawnY, rewardColor, 8 + Math.min(5, mouseComboCount));
+  spawnFloatingPoints(spawnX, spawnY - 12, `+${mousePoints}`, isDiscovery ? '#ffd45c' : mouseComboCount >= 5 ? '#ffd06b' : '#fff4b0');
   triggerSfx(mouseComboCount >= 3 ? 'combo_collect' : 'mouse_collect');
   if (mouseComboCount === 3 || mouseComboCount === 5 || mouseComboCount === 8) {
     addCameraImpact(0.0018 + mouseComboCount * 0.00012, 70);
@@ -1237,7 +1279,20 @@ function collectMouse(playerSprite, mouse) {
     nextMouseLifeMilestone += MICE_PER_EXTRA_LIFE;
   }
 
-  if (miceCollected === miceTotal) {
+  if (isDiscovery && discoveryMiceCollected === discoveryMiceTotal && currentDiscoveryRoute) {
+    discoveryBonusEarned = currentDiscoveryRoute.bonus;
+    score += discoveryBonusEarned;
+    scoreText.setText(getHudScoreSummary());
+    spawnActionBurst(spawnX, spawnY, 0xffc83d, 18);
+    spawnFloatingPoints(spawnX, spawnY - 24, `Route +${discoveryBonusEarned}`, '#ffe48a');
+    addCameraImpact(0.003, 130, { r: 255, g: 218, b: 92 });
+    triggerSfx('combo_collect');
+    setStatus(`${currentDiscoveryRoute.label} entdeckt! +${discoveryBonusEarned} Punkte`, 2200);
+  } else if (isDiscovery) {
+    setStatus(`${currentDiscoveryRoute.label}: ${discoveryMiceCollected}/${discoveryMiceTotal} Goldmäuse`, 900);
+  }
+
+  if (!isDiscovery && miceCollected === miceTotal) {
     setStatus('Alle Mäuse gesammelt. Zur Flagge!', 2200);
   }
 }
@@ -1320,6 +1375,9 @@ function reachFlag() {
       challengeLabel: currentLevelChallenge?.label,
       challengeState,
       challengeBonus,
+      discoveryLabel: currentDiscoveryRoute?.label,
+      discoveryCompleted: discoveryMiceTotal > 0 && discoveryMiceCollected === discoveryMiceTotal,
+      discoveryBonus: discoveryBonusEarned,
       streak: challengeSuccessStreak,
       livesLost: levelLivesLost,
       maxCombo: levelMaxCombo,
@@ -2718,6 +2776,13 @@ function getTestLevelConfig() {
     ],
     catnips: [],
     hiddenLives: [],
+    discoveryRoute: {
+      key: 'test',
+      label: 'Testspur',
+      hint: 'Goldmäuse über den Testplattformen',
+      bonus: 500,
+      mice: [[520, 390], [980, 280], [1500, 350], [2020, 230]],
+    },
   };
 }
 
@@ -2773,6 +2838,9 @@ function initDomRunHud() {
     lives: document.getElementById('livesBadge'),
     challenge: document.getElementById('challengeBadge'),
     challengeProgress: document.getElementById('challengeProgress'),
+    discoveryRoot: document.getElementById('discoveryHud'),
+    discovery: document.getElementById('discoveryBadge'),
+    discoveryProgress: document.getElementById('discoveryProgress'),
     combo: document.getElementById('comboHud'),
     comboLabel: document.getElementById('comboLabel'),
     comboFill: document.getElementById('comboFill'),
@@ -2828,6 +2896,22 @@ function syncDomRunHud() {
   setDomText(domHud.lives, `❤️ ${Math.max(0, lives)}`);
   setDomText(domHud.challenge, currentLevelChallenge?.label || 'Aufwärmen');
   setDomText(domHud.challengeProgress, getChallengeProgressText());
+  if (domHud.discoveryRoot) {
+    domHud.discoveryRoot.hidden = !currentDiscoveryRoute;
+    domHud.discoveryRoot.classList.toggle(
+      'is-complete',
+      discoveryMiceTotal > 0 && discoveryMiceCollected === discoveryMiceTotal,
+    );
+  }
+  if (currentDiscoveryRoute) {
+    setDomText(domHud.discovery, currentDiscoveryRoute.label);
+    setDomText(
+      domHud.discoveryProgress,
+      discoveryMiceCollected === discoveryMiceTotal
+        ? `Geschafft · +${discoveryBonusEarned}`
+        : `${discoveryMiceCollected} / ${discoveryMiceTotal} Goldmäuse`,
+    );
+  }
   setDomText(domHud.comboLabel, comboActive ? `Flow x${comboMultiplier.toFixed(1)}` : 'Flow x1.0');
   domHud.root.style.setProperty('--theme-accent', accents[currentTheme?.key] || accents.forest);
   if (domHud.progressFill) domHud.progressFill.style.width = `${progressPercent}%`;
@@ -3416,8 +3500,17 @@ function showLevelCompleteDialog(summary) {
   setResultText('levelCompleteLead', `${summary.score.toLocaleString('de-DE')} Punkte auf der gesamten Jagd.`);
   setResultText('levelBonusResult', `+${summary.levelBonus.toLocaleString('de-DE')}`);
   setResultText('challengeBonusResult', `+${summary.challengeBonus.toLocaleString('de-DE')}`);
+  setResultText('discoveryBonusResult', `+${summary.discoveryBonus.toLocaleString('de-DE')}`);
   setResultText('totalBonusResult', `+${summary.totalBonus.toLocaleString('de-DE')}`);
   setResultText('challengeResult', summary.challengeText);
+  setResultText(
+    'discoveryResult',
+    summary.discoveryLabel
+      ? summary.discoveryCompleted
+        ? `${summary.discoveryLabel} vollständig entdeckt`
+        : `${summary.discoveryLabel} bleibt unvollständig`
+      : 'Keine Entdeckungsroute in diesem Level.',
+  );
   setResultText('comboResult', String(summary.maxCombo));
   setResultText('stompsResult', String(summary.stomps));
   setResultText('hitsResult', String(summary.livesLost));
@@ -3430,6 +3523,7 @@ function showLevelCompleteDialog(summary) {
         : 'Neue Serie ab dem nächsten Aufgabenerfolg.',
   );
   document.getElementById('challengeResult')?.classList.toggle('is-missed', summary.challengeState === 'missed');
+  document.getElementById('discoveryResult')?.classList.toggle('is-complete', summary.discoveryCompleted);
   continueButton.textContent = `Weiter zu Level ${summary.nextLevel}`;
   continueButton.onclick = (event) => {
     event.preventDefault();

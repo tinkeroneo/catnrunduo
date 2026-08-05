@@ -40,6 +40,10 @@
         <span><small>Aufgabe</small><strong id="challengeBadge">Aufwärmen</strong></span>
         <span id="challengeProgress">Bereit</span>
       </div>
+      <div id="discoveryHud" class="run-hud__discovery" hidden>
+        <span><small>Entdeckung</small><strong id="discoveryBadge">Wipfelspur</strong></span>
+        <span id="discoveryProgress">0 / 4 Goldmäuse</span>
+      </div>
       <div id="comboHud" class="combo-hud" aria-live="polite">
         <span id="comboLabel">Flow x1.0</span>
         <span class="combo-hud__track" aria-hidden="true"><span id="comboFill"></span></span>
@@ -63,6 +67,7 @@
       <li><strong>Desktop:</strong> Laufe mit Pfeilen oder A/D und springe mit Leertaste, W oder ↑.</li>
       <li><strong>Touch:</strong> Ziehe nach links oder rechts zum Laufen und wische nach oben zum Springen.</li>
       <li><strong>Aktionen:</strong> Neustart, Pause, Audio und Touch-Profil haben benannte Buttons.</li>
+      <li><strong>Entdeckungen:</strong> Ab Level 3 markieren Goldmäuse einen optionalen, riskanteren Bonuspfad.</li>
       <li><strong>Fortschritt:</strong> Nach jedem Level wird dein Lauf automatisch gespeichert.</li>
     </ul>
     <button id="closeHelpButton" type="button">Loslaufen</button>
@@ -74,9 +79,11 @@
     <div class="level-result" aria-label="Punkteübersicht">
       <span><small>Levelbonus</small><strong id="levelBonusResult">+0</strong></span>
       <span><small>Aufgabe</small><strong id="challengeBonusResult">+0</strong></span>
+      <span><small>Entdeckung</small><strong id="discoveryBonusResult">+0</strong></span>
       <span class="level-result__total"><small>Gesamt</small><strong id="totalBonusResult">+0</strong></span>
     </div>
     <p id="challengeResult" class="challenge-result">Einführung abgeschlossen</p>
+    <p id="discoveryResult" class="discovery-result">Keine Entdeckungsroute in diesem Level.</p>
     <div class="performance-result" aria-label="Leistung in diesem Level">
       <span>⚡ <strong id="comboResult">0</strong> Combo</span>
       <span>🐾 <strong id="stompsResult">0</strong> Stomps</span>

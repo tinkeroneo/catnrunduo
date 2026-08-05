@@ -42,6 +42,8 @@ test('mission HUD exposes progress, challenge and combo feedback', () => {
   assert.match(html, /id="runHud"[^>]*aria-label="Aktueller Lauf"/);
   assert.match(html, /id="levelProgress"[^>]*role="progressbar"/);
   assert.match(html, /id="challengeBadge"/);
+  assert.match(html, /id="discoveryHud"[^>]*hidden/);
+  assert.match(html, /id="discoveryProgress"/);
   assert.match(html, /id="comboHud"[^>]*aria-live="polite"/);
   assert.match(html, /id="runStatus"[^>]*role="status"/);
   assert.match(css, /\.run-hud \{/);
@@ -49,6 +51,8 @@ test('mission HUD exposes progress, challenge and combo feedback', () => {
   assert.match(game, /function syncDomRunHud\(\)/);
   assert.match(game, /function spawnActionBurst\(/);
   assert.match(game, /function celebrateLevelClear\(/);
+  assert.match(game, /function collectDiscoveryMouse\(/);
+  assert.match(game, /mouse\.setTint\(0xffd05c\)/);
 });
 
 test('level completion is a deliberate accessible handoff instead of an automatic restart', () => {
@@ -58,6 +62,7 @@ test('level completion is a deliberate accessible handoff instead of an automati
   assert.match(html, /<dialog id="levelCompleteDialog"[^>]*aria-labelledby="levelCompleteTitle"/);
   assert.match(html, /id="levelBonusResult"/);
   assert.match(html, /id="challengeBonusResult"/);
+  assert.match(html, /id="discoveryBonusResult"/);
   assert.match(html, /id="continueLevelButton"/);
   assert.match(game, /PROGRESSION\.createLevelSummary\(/);
   assert.match(game, /showLevelCompleteDialog\(summary\)/);

@@ -11,6 +11,11 @@
     movingVMaxY: 550,
     bossLevelInterval: 10,
   };
+  const DISCOVERY_ROUTES = [
+    { key: 'skyline', label: 'Wipfelspur', hint: 'Goldmäuse über den höchsten Plattformen' },
+    { key: 'motion', label: 'Wackelweg', hint: 'Goldmäuse an bewegten Plattformen' },
+    { key: 'brave', label: 'Mutpfad', hint: 'Goldmäuse weit über dem sicheren Boden' },
+  ];
 
   function rand01(seed, index) {
     const value = Math.sin(seed * 12.9898 + index * 78.233) * 43758.5453;
@@ -27,6 +32,43 @@
     if (roll > 0.86) return 'moving';
     if (roll < 0.12) return 'crumbly';
     return 'normal';
+  }
+
+  function createDiscoveryRoute(level, platforms, { worldHeight = 720 } = {}) {
+    if (level < 3 || !Array.isArray(platforms) || platforms.length < 4) return null;
+    const definition = DISCOVERY_ROUTES[(level - 3) % DISCOVERY_ROUTES.length];
+    const elevated = platforms.filter((platform) => platform.y < worldHeight - 150);
+    let candidates = elevated;
+    if (definition.key === 'skyline') {
+      candidates = [...elevated].sort((a, b) => a.y - b.y || a.x - b.x);
+    } else if (definition.key === 'motion') {
+      const motion = elevated.filter((platform) => platform.type === 'moving' || platform.type === 'moving_v');
+      candidates = [...motion, ...elevated.filter((platform) => !motion.includes(platform))];
+    } else {
+      candidates = [...elevated].sort((a, b) => b.x - a.x || a.y - b.y);
+    }
+    const selected = [];
+    for (const platform of candidates) {
+      if (selected.some((entry) => Math.abs(entry.x - platform.x) < 120)) continue;
+      selected.push(platform);
+      if (selected.length === 4) break;
+    }
+    for (const platform of elevated) {
+      if (selected.length === 4) break;
+      if (!selected.includes(platform)) selected.push(platform);
+    }
+    const mice = selected
+      .slice(0, 4)
+      .map((platform, index) => [
+        clamp(Math.round(platform.x + (index % 2 === 0 ? -18 : 18)), 180, 2500),
+        clamp(Math.round(platform.y - 76 - (definition.key === 'skyline' ? 12 : 0)), 105, worldHeight - 170),
+      ])
+      .sort((a, b) => a[0] - b[0]);
+    return {
+      ...definition,
+      bonus: 320 + level * 22,
+      mice,
+    };
   }
 
   function generateLevelConfig(level, overrides = {}) {
@@ -118,7 +160,8 @@
       }
     }
 
-    const config = { platforms, mice, enemies, catnips, hiddenLives };
+    const discoveryRoute = createDiscoveryRoute(level, platforms, { worldHeight });
+    const config = { platforms, mice, enemies, catnips, hiddenLives, discoveryRoute };
     if (level % bossLevelInterval === 0) {
       config.boss = {
         x: worldWidth - 140,
@@ -132,5 +175,5 @@
     return config;
   }
 
-  return { generateLevelConfig, platformTypeForRoll, rand01 };
+  return { DISCOVERY_ROUTES, createDiscoveryRoute, generateLevelConfig, platformTypeForRoll, rand01 };
 }));

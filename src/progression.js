@@ -52,6 +52,9 @@
     challengeLabel = 'Aufgabe',
     challengeState = 'neutral',
     challengeBonus = 0,
+    discoveryLabel = '',
+    discoveryCompleted = false,
+    discoveryBonus = 0,
     streak = 0,
     livesLost = 0,
     maxCombo = 0,
@@ -60,6 +63,7 @@
   } = {}) {
     const safeLevelBonus = Math.max(0, Math.round(Number(levelClearBonus) || 0));
     const safeChallengeBonus = Math.max(0, Math.round(Number(challengeBonus) || 0));
+    const safeDiscoveryBonus = Math.max(0, Math.round(Number(discoveryBonus) || 0));
     const state = ['completed', 'missed'].includes(challengeState) ? challengeState : 'neutral';
     const challengeText = state === 'completed'
       ? `${challengeLabel} geschafft`
@@ -72,7 +76,10 @@
       challengeState: state,
       levelBonus: safeLevelBonus,
       challengeBonus: safeChallengeBonus,
-      totalBonus: safeLevelBonus + safeChallengeBonus,
+      discoveryLabel: String(discoveryLabel || ''),
+      discoveryCompleted: Boolean(discoveryCompleted),
+      discoveryBonus: safeDiscoveryBonus,
+      totalBonus: safeLevelBonus + safeChallengeBonus + safeDiscoveryBonus,
       streak: Math.max(0, Math.floor(Number(streak) || 0)),
       livesLost: Math.max(0, Math.floor(Number(livesLost) || 0)),
       maxCombo: Math.max(0, Math.floor(Number(maxCombo) || 0)),

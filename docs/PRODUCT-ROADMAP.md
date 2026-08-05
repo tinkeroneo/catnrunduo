@@ -23,6 +23,7 @@ Stand: 2026-08-05
 | P0 | Game Feel | Sammelbursts, Punktetexte, kontrollierte Kamerareaktionen und Abschlussfeuerwerk verstärken Aktionen | umgesetzt |
 | P1 | Levelabschlusskarte | Bonus, Aufgabe, Leistung, Entdeckungsbonus und nächstes Level werden vor dem bewussten Weitergehen zusammengefasst | umgesetzt |
 | P1 | Entdeckungen | deterministische Goldmaus-Nebenrouten ab Level 3 erhöhen Risiko, Belohnung und Wiederspielwert, ohne den Abschluss zu blockieren | umgesetzt |
+| P1 | Szeneninszenierung | Levelkarte, Vorhang, Kamerablende und finales Reisebild geben Start, Wechsel und Abschluss einen eigenen Rhythmus | umgesetzt |
 | P1 | Levelauswahl/Abzeichen | bereits erreichte Level, Bestzeit und Aufgabenstatus werden außerhalb des Runs vergleichbar | Backlog |
 | P2 | Zusätzliche Animationen | Landung, Bremsen, Treffer und Sieg erhalten eigene Sprite-/Effektzustände | benötigt Assetarbeit |
 | P2 | Tägliche Route | reproduzierbarer Seed mit Tageswertung schafft einen kurzen Wiederkehrgrund | Backlog |

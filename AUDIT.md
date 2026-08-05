@@ -5,7 +5,7 @@ Geprüfter Branch: `main`
 
 ## Kurzurteil
 
-`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind abgesichert. Mission, Aufgabe und Combo sind sichtbar; ein bewusster Jagdbericht fasst jeden Levelabschluss zusammen und optionale Goldmaus-Routen erhöhen den Wiederspielwert.
+`cat-platformer` ist ein spielbarer, inhaltlich bereits breiter Phaser-Prototyp mit 52 Levels, Bossen, Modifikatoren, Challenges, adaptiver Schwierigkeit, Desktop-/Touch-Steuerung und mehrschichtiger Musik. Langzeitprogression, Einstieg, Qualitätsgate und eine schlankere Auslieferung sind abgesichert. Mission, Aufgabe und Combo sind sichtbar; ein bewusster Jagdbericht fasst jeden Levelabschluss zusammen und optionale Goldmaus-Routen erhöhen den Wiederspielwert. Levelwechsel besitzen nun eine eigene visuelle Dramaturgie aus Introkarte, Vorhang, Kamerablende und einer dauerhaften Abschlussinszenierung nach Level 52.
 
 Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wichtigste bestätigte Logikfehler lag im Levelgenerator: Der Zweig für zufällige Spring-Plattformen war unerreichbar. Dieser Fehler ist im ersten Maßnahmenblock behoben und automatisiert abgesichert worden.
 
@@ -15,7 +15,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | erledigt | ESLint ohne Warnungen, 14 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
+| CAT-03 | erledigt | ESLint ohne Warnungen, 15 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
 | CAT-05 | fortgeschritten | Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte als reine testbare Module ausgelagert; Szenendatei bleibt groß |
 | CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
@@ -31,6 +31,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | CAT-15 | erledigt | Aktionsbursts, Punktetexte, SFX, reduzierte Kamerareaktionen und Abschlussfeuerwerk geben jeder Kernaktion eine eigene Antwort |
 | CAT-16 | erledigt | zugänglicher Jagdbericht zeigt Aufgabenstatus, Mäuse, Zeit, Treffer, Flow, alle Boni und das nächste Level; die Einführungsaufgabe zählt neutral |
 | CAT-17 | erledigt | drei deterministische Entdeckungsrouten verteilen je vier optionale Goldmäuse und einen separaten Komplettbonus auf Level 3 bis 52 |
+| CAT-18 | erledigt | Level-Intros, Ausblendungen vor Neustart/Weiterreise und die finale Siegeskarte ersetzen harte Szenensprünge; Reduced Motion und eine stabile Browservorschau sind integriert |
 
 ## Aktueller Aufbau
 
@@ -53,13 +54,13 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Dependency-Audit | `npm audit` erfolgreich; 0 bekannte Schwachstellen |
 | Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
-| Modul-/Vertragstests | 14/14 erfolgreich; Generator, Entdeckungsrouten, Abschlussbericht, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
+| Modul-/Vertragstests | 15/15 erfolgreich; Generator, Entdeckungsrouten, Abschlussbericht, Szenenübergänge, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |
 | Laufzeitprotokoll | keine bestätigte Exception im geprüften Startablauf |
 | Browser-Smoke-Test | echter Phaser-/Canvas-Start und geöffnetes Onboarding in Headless Chrome |
-| Release-Build | 17 Runtime-Dateien, 15.536.479 Bytes bei 16-MiB-Budget |
+| Release-Build | 17 Runtime-Dateien, 15.544.750 Bytes bei 16-MiB-Budget |
 | CI | GitHub-Workflow für `npm ci`, vollständiges Gate und Build auf Zielcommit erfolgreich |
 
 ## Befunde
@@ -88,7 +89,7 @@ Akzeptanz: erfüllt und mit Storage-/UI-Vertragstests abgesichert.
 
 Zu Auditbeginn gab es weder Paketmanifest noch Test-, Lint- oder CI-Konfiguration. Generator, Challenge-Auswertung, Progression, Persistenz und Restart-/Pause-Zustände waren vollständig ungesichert.
 
-Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. Zwölf Node-Tests sichern Generator, Progression/Aufgaben, Persistenz, Neustart, Mission-HUD, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
+Umsetzung: ESLint prüft alle Runtime-Module mit null erlaubten Warnungen. 15 Node-Tests sichern Generator, Progression/Aufgaben, Persistenz, Neustart, Szenenübergänge, Mission-HUD, UI-Verträge und Textformatierung. Ein dauerhafter Smoke-Test startet einen isolierten lokalen Server und prüft in Headless Chrome den echten Phaser-/Canvas-Start und das Onboarding. GitHub Actions führt Gate und Release-Build aus.
 
 Akzeptanz: Ein einzelner dokumentierter Befehl prüft Syntax, Lint, Unit-Tests und einen Start-/Input-/Restart-Smoke-Test; CI führt denselben Befehl aus.
 
@@ -186,6 +187,12 @@ Aktuelle Desktopansicht mit Mission, Aufgabe, Flow und Entdeckungsroute:
 Aktuelle Hochkantansicht mit Mission und fünf semantischen Actions:
 
 ![Cat Platformer Produktansicht Mobile](docs/audit/product-mobile.png)
+
+Neuer Levelauftakt auf Desktop und in der exakten 390-px-Hochkantansicht:
+
+![Cat Platformer Szenenwechsel Desktop](docs/audit/transition-desktop.png)
+
+![Cat Platformer Szenenwechsel Mobile](docs/audit/transition-mobile.png)
 
 First-run-Hilfe in der schmalen Hochkantansicht:
 

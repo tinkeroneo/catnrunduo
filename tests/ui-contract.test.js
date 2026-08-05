@@ -68,3 +68,18 @@ test('level completion is a deliberate accessible handoff instead of an automati
   assert.match(game, /showLevelCompleteDialog\(summary\)/);
   assert.doesNotMatch(game, /delayedCall\(700,[\s\S]*currentLevel \+= 1/);
 });
+
+test('level scenes have a cinematic handoff with a reduced-motion fallback', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  assert.match(html, /id="sceneTransition"[^>]*aria-live="polite"/);
+  assert.match(html, /id="sceneTransitionTitle"/);
+  assert.match(css, /@keyframes scene-curtain-open/);
+  assert.match(css, /\.scene-transition\.is-exit/);
+  assert.match(css, /\.scene-transition\.is-preview/);
+  assert.match(game, /function showLevelIntroTransition\(\)/);
+  assert.match(game, /function runSceneExit\(/);
+  assert.match(game, /preview'\) === 'transition'/);
+});

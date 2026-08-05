@@ -186,6 +186,13 @@ const THEMES = [
     gameplay: { enemySpeedMul: 1.1, mousePoints: 115, catnipMs: 5600, stompPoints: 170 },
   },
 ];
+const THEME_ACCENTS = {
+  forest: '#78d69c',
+  ocean: '#72d6ee',
+  desert: '#ffc56c',
+  mountain: '#becbf1',
+  city: '#f0a7cf',
+};
 
 const config = {
   type: Phaser.AUTO,
@@ -316,6 +323,8 @@ let touchProfileMode = 'easy';
 let debugHitboxesActive = false;
 let animationGlobalTimeScale = 1;
 let domHud = null;
+let sceneTransitionTimer = 0;
+let sceneTransitionInFlight = false;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -733,6 +742,7 @@ function preload() {
 
 function create() {
   closeLevelCompleteDialog();
+  resetSceneTransition();
   levelCompleteOpenedAt = 0;
   const restoredThisScene = Number.isFinite(restoredRunElapsedMs);
   gameWon = false;
@@ -1075,6 +1085,7 @@ function create() {
   this.cameras.main.setFollowOffset(0, 0);
   this.cameras.main.roundPixels = true;
   this.cameras.main.setDeadzone(220, 90);
+  if (!reducedMotionPreferred()) this.cameras.main.fadeIn(420, 16, 36, 58);
 
   cursors = this.input.keyboard.createCursorKeys();
   wasd = this.input.keyboard.addKeys('W,A,D');
@@ -1237,6 +1248,7 @@ function create() {
     );
   }
   syncDomRunHud();
+  showLevelIntroTransition();
 }
 
 function collectMouse(_playerSprite, mouse) {
@@ -1413,6 +1425,7 @@ function reachFlag() {
   player.setVelocity(0, 0);
   player.anims.stop();
   setCatIdleTexture(player);
+  showRunVictoryTransition(runTimeMs);
 }
 
 function hitEnemy(playerSprite, enemy) {
@@ -2881,14 +2894,6 @@ function syncDomRunHud() {
     ? clampValue((mouseComboExpiresAt - sceneRef.time.now) / MOUSE_COMBO_WINDOW_MS, 0, 1)
     : 0;
   const comboMultiplier = comboActive ? getMouseComboMultiplier(mouseComboCount) : 1;
-  const accents = {
-    forest: '#78d69c',
-    ocean: '#72d6ee',
-    desert: '#ffc56c',
-    mountain: '#becbf1',
-    city: '#f0a7cf',
-  };
-
   setDomText(domHud.level, `Level ${currentLevel} / ${MAX_LEVEL}`);
   setDomText(domHud.theme, currentTheme?.label || 'Reise');
   setDomText(domHud.mice, `🐭 ${miceCollected} / ${miceTotal}`);
@@ -2913,7 +2918,7 @@ function syncDomRunHud() {
     );
   }
   setDomText(domHud.comboLabel, comboActive ? `Flow x${comboMultiplier.toFixed(1)}` : 'Flow x1.0');
-  domHud.root.style.setProperty('--theme-accent', accents[currentTheme?.key] || accents.forest);
+  domHud.root.style.setProperty('--theme-accent', THEME_ACCENTS[currentTheme?.key] || THEME_ACCENTS.forest);
   if (domHud.progressFill) domHud.progressFill.style.width = `${progressPercent}%`;
   if (domHud.progress) {
     domHud.progress.setAttribute('aria-valuenow', String(progressPercent));
@@ -2925,6 +2930,84 @@ function syncDomRunHud() {
 
 function reducedMotionPreferred() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function getSceneTransitionElements() {
+  return {
+    root: document.getElementById('sceneTransition'),
+    kicker: document.getElementById('sceneTransitionKicker'),
+    title: document.getElementById('sceneTransitionTitle'),
+    subtitle: document.getElementById('sceneTransitionSubtitle'),
+    detail: document.getElementById('sceneTransitionDetail'),
+  };
+}
+
+function resetSceneTransition() {
+  if (sceneTransitionTimer) window.clearTimeout(sceneTransitionTimer);
+  sceneTransitionTimer = 0;
+  sceneTransitionInFlight = false;
+  const { root } = getSceneTransitionElements();
+  if (!root) return;
+  root.className = 'scene-transition';
+  root.setAttribute('aria-hidden', 'true');
+}
+
+function setSceneTransitionContent({ kicker, title, subtitle, detail = '', accentKey = currentTheme?.key }) {
+  const elements = getSceneTransitionElements();
+  setDomText(elements.kicker, kicker);
+  setDomText(elements.title, title);
+  setDomText(elements.subtitle, subtitle);
+  setDomText(elements.detail, detail);
+  elements.root?.style.setProperty('--scene-accent', THEME_ACCENTS[accentKey] || THEME_ACCENTS.forest);
+  return elements.root;
+}
+
+function showLevelIntroTransition() {
+  const detailParts = [`Aufgabe · ${currentLevelChallenge?.label || 'Aufwärmen'}`];
+  if (currentDiscoveryRoute) detailParts.push(`Entdeckung · ${currentDiscoveryRoute.label}`);
+  const root = setSceneTransitionContent({
+    kicker: currentLevel % BOSS_LEVEL_INTERVAL === 0 ? 'Bossjagd' : `Jagd ${currentLevel} von ${MAX_LEVEL}`,
+    title: `Level ${currentLevel}`,
+    subtitle: `${currentTheme?.label || 'Reise'} · ${currentLevelModifier?.label || 'Standard'}`,
+    detail: detailParts.join('  ·  '),
+  });
+  if (!root) return;
+  const preview = new URLSearchParams(window.location.search).get('preview') === 'transition';
+  root.className = `scene-transition is-visible is-enter${preview ? ' is-preview' : ''}`;
+  root.setAttribute('aria-hidden', 'false');
+  if (preview) return;
+  sceneTransitionTimer = window.setTimeout(resetSceneTransition, reducedMotionPreferred() ? 180 : 1800);
+}
+
+function runSceneExit({ kicker, title, subtitle, accentKey, onComplete }) {
+  if (sceneTransitionInFlight) return;
+  sceneTransitionInFlight = true;
+  const root = setSceneTransitionContent({ kicker, title, subtitle, accentKey, detail: 'Die nächste Szene wird vorbereitet' });
+  if (root) {
+    root.className = 'scene-transition is-visible is-exit';
+    root.setAttribute('aria-hidden', 'false');
+  }
+  const duration = reducedMotionPreferred() ? 0 : 430;
+  sceneRef?.physics?.world?.pause();
+  if (duration > 0) sceneRef?.cameras?.main?.fadeOut(duration, 16, 36, 58);
+  const finish = () => {
+    sceneTransitionInFlight = false;
+    onComplete?.();
+  };
+  if (duration <= 0 || !sceneRef?.time) finish();
+  else sceneRef.time.delayedCall(duration, finish);
+}
+
+function showRunVictoryTransition(runTimeMs) {
+  const root = setSceneTransitionContent({
+    kicker: 'Reise vollendet',
+    title: '52 Jagden geschafft',
+    subtitle: `Zeit · ${formatMs(runTimeMs)}`,
+    detail: `Endstand · ${score.toLocaleString('de-DE')} Punkte  ·  ↻ oder R startet eine neue Reise`,
+  });
+  if (!root) return;
+  root.className = 'scene-transition is-visible is-victory';
+  root.setAttribute('aria-hidden', 'false');
 }
 
 function spawnActionBurst(x, y, color = 0xffd66b, count = 9) {
@@ -3397,7 +3480,14 @@ function restartRun() {
   clearSavedRun();
   restoredRunElapsedMs = null;
   currentLevel = 1;
-  sceneRef.scene.restart();
+  gameWon = true;
+  runSceneExit({
+    kicker: 'Neue Reise',
+    title: 'Zurück in den Wald',
+    subtitle: 'Die Jagd beginnt von vorn',
+    accentKey: 'forest',
+    onComplete: () => sceneRef.scene.restart(),
+  });
   return true;
 }
 
@@ -3545,7 +3635,15 @@ function advanceToNextLevel(nextLevel) {
   closeLevelCompleteDialog();
   currentLevel = nextLevel;
   saveRunProgress();
-  sceneRef?.scene?.restart();
+  const nextTheme = getThemeForLevel(nextLevel);
+  const nextChallenge = PROGRESSION.getLevelChallenge(nextLevel);
+  runSceneExit({
+    kicker: `Jagd ${nextLevel} von ${MAX_LEVEL}`,
+    title: `Weiter nach ${nextTheme.label}`,
+    subtitle: `Nächste Aufgabe · ${nextChallenge.label}`,
+    accentKey: nextTheme.key,
+    onComplete: () => sceneRef?.scene?.restart(),
+  });
 }
 
 function setupHelpDialog() {

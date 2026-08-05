@@ -331,11 +331,11 @@ body {
 }
 
 .scene-transition.is-enter {
-  animation: scene-overlay-enter 1750ms both;
+  animation: scene-overlay-enter 1650ms both;
 }
 
 .scene-transition.is-enter::before {
-  animation: scene-curtain-open 1750ms cubic-bezier(.72,0,.2,1) both;
+  animation: scene-curtain-open 1650ms cubic-bezier(.72,0,.2,1) both;
 }
 
 .scene-transition.is-enter::after,
@@ -366,7 +366,59 @@ body {
 }
 
 .scene-transition.is-enter .scene-transition__card {
-  animation: scene-card-enter 1750ms cubic-bezier(.22,.75,.22,1) both;
+  animation: scene-card-enter 1650ms cubic-bezier(.22,.75,.22,1) both;
+}
+
+.scene-transition[data-theme="forest"]::before {
+  background:
+    radial-gradient(ellipse at 18% 24%, #b9f4b838 0 5%, transparent 6%),
+    radial-gradient(ellipse at 82% 70%, #8fe3bc32 0 7%, transparent 8%),
+    linear-gradient(135deg, #10243aee, #1c4a42eb);
+}
+
+.scene-transition[data-theme="ocean"]::before {
+  background:
+    repeating-radial-gradient(ellipse at 70% 92%, #b9f4ff26 0 10px, transparent 12px 30px),
+    linear-gradient(145deg, #0d2944ef, #176b82e8);
+}
+
+.scene-transition[data-theme="desert"]::before {
+  background:
+    radial-gradient(circle at 78% 22%, #fff1a95c 0 8%, transparent 9%),
+    linear-gradient(145deg, #5b3525ed, #ba7545e8);
+}
+
+.scene-transition[data-theme="mountain"]::before {
+  background:
+    linear-gradient(145deg, transparent 48%, #dce7ff22 49% 55%, transparent 56%),
+    linear-gradient(135deg, #172942ef, #495a78eb);
+}
+
+.scene-transition[data-theme="city"]::before {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 58px, #ffc1e51c 59px 62px),
+    linear-gradient(145deg, #1c2438ef, #4a3153eb);
+}
+
+.scene-transition.is-enter.is-compact {
+  place-items: start center;
+  padding-top: clamp(170px, 28vh, 230px);
+  animation: scene-overlay-compact 780ms both;
+}
+
+.scene-transition.is-enter.is-compact::before {
+  opacity: 0.62;
+  animation: scene-veil-compact 780ms ease both;
+}
+
+.scene-transition.is-enter.is-compact::after {
+  display: none;
+}
+
+.scene-transition.is-enter.is-compact .scene-transition__card {
+  width: min(440px, calc(100% - 32px));
+  padding: 15px 20px;
+  animation: scene-card-compact 780ms cubic-bezier(.22,.75,.22,1) both;
 }
 
 .scene-transition.is-preview {
@@ -423,6 +475,33 @@ body {
   font-size: 0.78rem;
 }
 
+.scene-transition__skip {
+  position: relative;
+  margin-top: 13px;
+  padding: 8px 13px;
+  border: 1px solid #ffffff48;
+  border-radius: 999px;
+  color: #fff;
+  background: #ffffff14;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.scene-transition__skip:hover,
+.scene-transition__skip:focus-visible {
+  background: #ffffff28;
+  outline: 2px solid var(--scene-accent);
+  outline-offset: 2px;
+}
+
+.scene-transition.is-exit .scene-transition__skip,
+.scene-transition.is-victory .scene-transition__skip {
+  display: none;
+}
+
 @keyframes scene-overlay-enter {
   0%, 72% { opacity: 1; }
   100% { opacity: 0; }
@@ -446,6 +525,22 @@ body {
   0% { opacity: 0; transform: translateY(22px) scale(.96); }
   18%, 62% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-12px) scale(1.02); }
+}
+
+@keyframes scene-overlay-compact {
+  0%, 68% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes scene-veil-compact {
+  0%, 55% { clip-path: inset(0); opacity: .62; }
+  100% { clip-path: inset(0 0 100%); opacity: 0; }
+}
+
+@keyframes scene-card-compact {
+  0% { opacity: 0; transform: translateY(-12px) scale(.98); }
+  18%, 62% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-8px) scale(1.01); }
 }
 
 .run-hud__route,
@@ -702,6 +797,10 @@ canvas {
     padding: 18px;
   }
 
+  .scene-transition.is-compact .scene-transition__card {
+    margin-top: 0;
+  }
+
   .run-hud__eyebrow,
   .run-hud__mission small,
   .run-hud__discovery small {
@@ -756,5 +855,21 @@ canvas {
   .scene-transition__card {
     transition: none;
     animation-duration: 1ms !important;
+  }
+
+  .scene-transition.is-enter,
+  .scene-transition.is-enter::before,
+  .scene-transition.is-enter .scene-transition__card {
+    animation: none !important;
+  }
+
+  .scene-transition.is-enter::before {
+    clip-path: inset(0);
+    opacity: .7;
+  }
+
+  .scene-transition.is-enter .scene-transition__card {
+    opacity: 1;
+    transform: none;
   }
 }

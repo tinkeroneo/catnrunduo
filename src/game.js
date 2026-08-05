@@ -155,35 +155,35 @@ const THEMES = [
     label: 'Wald',
     sky: '#9bdcff',
     ground: { B: '#4d341f', 7: '#8fbf78', 6: '#7fb06a', 5: '#739f5f', 4: '#678f55', 3: '#5b7f4b', 2: '#4f7141' },
-    gameplay: { enemySpeedMul: 0.95, mousePoints: 100, catnipMs: 7000, stompPoints: 140 },
+    gameplay: { enemySpeedMul: 0.95, mousePoints: 100, catnipMs: 7000, stompPoints: 140, gravityMul: 1, runMul: 1, jumpMul: 1, cue: 'Ausgewogene Pfade' },
   },
   {
     key: 'ocean',
     label: 'Ozean',
     sky: '#86c9ff',
     ground: { B: '#3e2f27', 7: '#d2be8b', 6: '#c7b47f', 5: '#baa672', 4: '#ac9766', 3: '#9d8658', 2: '#8d764b' },
-    gameplay: { enemySpeedMul: 0.9, mousePoints: 95, catnipMs: 7800, stompPoints: 130 },
+    gameplay: { enemySpeedMul: 0.9, mousePoints: 95, catnipMs: 7800, stompPoints: 130, gravityMul: 0.92, runMul: 0.96, jumpMul: 1.04, cue: 'Leichte Sprünge · ruhiger Lauf' },
   },
   {
     key: 'desert',
     label: 'Wueste',
     sky: '#ffd7a6',
     ground: { B: '#5a3f28', 7: '#dcb26e', 6: '#d3a763', 5: '#c99a58', 4: '#bd8d4f', 3: '#b08046', 2: '#a1713d' },
-    gameplay: { enemySpeedMul: 1.12, mousePoints: 110, catnipMs: 5200, stompPoints: 165 },
+    gameplay: { enemySpeedMul: 1.12, mousePoints: 110, catnipMs: 5200, stompPoints: 165, gravityMul: 1.04, runMul: 1.03, jumpMul: 1, cue: 'Schneller Boden · harte Landung' },
   },
   {
     key: 'mountain',
     label: 'Berg',
     sky: '#b8d2f0',
     ground: { B: '#3c3c45', 7: '#9ca5b7', 6: '#909aad', 5: '#828d9f', 4: '#747f90', 3: '#687284', 2: '#5a6475' },
-    gameplay: { enemySpeedMul: 1.06, mousePoints: 105, catnipMs: 6000, stompPoints: 155 },
+    gameplay: { enemySpeedMul: 1.06, mousePoints: 105, catnipMs: 6000, stompPoints: 155, gravityMul: 0.96, runMul: 0.98, jumpMul: 1.07, cue: 'Hohe Sprünge · schmale Pfade' },
   },
   {
     key: 'city',
     label: 'Stadt',
     sky: '#c6d6e6',
     ground: { B: '#33343b', 7: '#8f8f97', 6: '#84848d', 5: '#787982', 4: '#6d6e78', 3: '#61636d', 2: '#545762' },
-    gameplay: { enemySpeedMul: 1.1, mousePoints: 115, catnipMs: 5600, stompPoints: 170 },
+    gameplay: { enemySpeedMul: 1.1, mousePoints: 115, catnipMs: 5600, stompPoints: 170, gravityMul: 1, runMul: 1.08, jumpMul: 1, cue: 'Hohes Tempo · flinke Patrouillen' },
   },
 ];
 const THEME_ACCENTS = {
@@ -325,6 +325,11 @@ let animationGlobalTimeScale = 1;
 let domHud = null;
 let sceneTransitionTimer = 0;
 let sceneTransitionInFlight = false;
+let sceneIntroActive = false;
+let sceneIntroStartedAt = 0;
+let sceneTransitionControlsBound = false;
+let playerWasGrounded = true;
+let lastAirborneVelocityY = 0;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -796,7 +801,11 @@ function create() {
   levelLivesLost = 0;
   levelMaxCombo = 0;
   levelStomps = 0;
-  this.physics.world.gravity.y = Math.round(BASE_GRAVITY_Y * (currentLevelModifier.gravityMul ?? 1));
+  this.physics.world.gravity.y = Math.round(
+    BASE_GRAVITY_Y
+    * (currentLevelModifier.gravityMul ?? 1)
+    * (currentTheme.gameplay?.gravityMul ?? 1),
+  );
   createParallaxBackground(this, theme);
   const groundKey = ensureGroundTexture(this, theme);
   const platforms = this.physics.add.staticGroup();
@@ -924,6 +933,10 @@ function create() {
     ? this.physics.add.sprite(100, WORLD_HEIGHT - 120, useCleanSheetCat ? 'cat_sheet_clean_0' : 'cat_sheet', useCleanSheetCat ? undefined : 0)
     : this.physics.add.sprite(100, WORLD_HEIGHT - 120, 'cat_run_0');
   if (useSheetCat) player.setScale(CAT_SHEET_SCALE);
+  player.setData('baseScaleX', player.scaleX);
+  player.setData('baseScaleY', player.scaleY);
+  playerWasGrounded = true;
+  lastAirborneVelocityY = 0;
   player.setCollideWorldBounds(true);
   player.setBounce(0.02);
   if (useSheetCat) {
@@ -1229,6 +1242,7 @@ function create() {
   );
   syncActionButtonStates();
   setupHelpDialog();
+  setupSceneTransitionControls();
   initDomRunHud();
 
   initSfx(this);
@@ -2265,11 +2279,44 @@ function carryPlayerOnMovingPlatforms() {
   });
 }
 
+function updateLandingFeedback() {
+  if (!player?.body) return;
+  const grounded = Boolean(player.body.blocked.down);
+  if (!grounded) {
+    lastAirborneVelocityY = Math.max(lastAirborneVelocityY, player.body.velocity.y || 0);
+    playerWasGrounded = false;
+    return;
+  }
+
+  if (!playerWasGrounded && lastAirborneVelocityY > 150) {
+    const baseScaleX = player.getData('baseScaleX') || 1;
+    const baseScaleY = player.getData('baseScaleY') || 1;
+    const impact = clampValue((lastAirborneVelocityY - 150) / 360, 0, 1);
+    const accent = Number.parseInt((THEME_ACCENTS[currentTheme?.key] || '#78d69c').slice(1), 16);
+    spawnActionBurst(player.x, player.body.bottom - 3, accent, 4 + Math.round(impact * 5));
+    if (!reducedMotionPreferred()) {
+      sceneRef?.tweens?.killTweensOf(player);
+      player.setScale(baseScaleX * (1.08 + impact * 0.06), baseScaleY * (0.92 - impact * 0.08));
+      sceneRef?.tweens?.add({
+        targets: player,
+        scaleX: baseScaleX,
+        scaleY: baseScaleY,
+        duration: 150,
+        ease: 'Back.Out',
+      });
+      if (impact > 0.72) sceneRef?.cameras?.main?.shake(70, 0.0015);
+    }
+  }
+  lastAirborneVelocityY = 0;
+  playerWasGrounded = true;
+}
+
 function update() {
   syncAnimationTiming();
   syncDomRunHud();
 
   if (isHelpDialogOpen() || isLevelCompleteDialogOpen()) return;
+  if (sceneIntroActive) return;
 
   if (Phaser.Input.Keyboard.JustDown(debugKey)) {
     setArcadeDebug(sceneRef, !debugHitboxesActive);
@@ -2336,6 +2383,8 @@ function update() {
     return;
   }
 
+  updateLandingFeedback();
+
   const keyboardLeft = cursors.left.isDown || wasd.A.isDown;
   const keyboardRight = cursors.right.isDown || wasd.D.isDown;
   const keyboardJump = cursors.space.isDown || cursors.up.isDown || wasd.W.isDown;
@@ -2350,11 +2399,13 @@ function update() {
   if (jumpRequested) jumpBufferedUntil = now + JUMP_BUFFER_MS;
   const canGroundJump = player.body.blocked.down || (now - lastGroundedAt) <= JUMP_COYOTE_MS;
   const modifierRunMul = currentLevelModifier.runMul ?? 1;
+  const themeRunMul = getThemeGameplay().runMul ?? 1;
+  const themeJumpMul = getThemeGameplay().jumpMul ?? 1;
   const assistRunMul = adaptiveAssistActive ? ADAPTIVE_ASSIST_RUN_MUL : 1;
   const assistJumpDelta = adaptiveAssistActive ? ADAPTIVE_ASSIST_JUMP_DELTA : 0;
-  const runSpeed = Math.round((isBoosted ? 330 : 260) * modifierRunMul * assistRunMul);
-  const jumpMain = (isBoosted ? -620 : -560) + assistJumpDelta;
-  const jumpDouble = (isBoosted ? -550 : -500) + Math.round(assistJumpDelta * 0.8);
+  const runSpeed = Math.round((isBoosted ? 330 : 260) * modifierRunMul * themeRunMul * assistRunMul);
+  const jumpMain = Math.round(((isBoosted ? -620 : -560) + assistJumpDelta) * themeJumpMul);
+  const jumpDouble = Math.round(((isBoosted ? -550 : -500) + Math.round(assistJumpDelta * 0.8)) * themeJumpMul);
 
   if (left) {
     player.setVelocityX(-runSpeed);
@@ -2946,6 +2997,8 @@ function resetSceneTransition() {
   if (sceneTransitionTimer) window.clearTimeout(sceneTransitionTimer);
   sceneTransitionTimer = 0;
   sceneTransitionInFlight = false;
+  sceneIntroActive = false;
+  sceneIntroStartedAt = 0;
   const { root } = getSceneTransitionElements();
   if (!root) return;
   root.className = 'scene-transition';
@@ -2959,11 +3012,29 @@ function setSceneTransitionContent({ kicker, title, subtitle, detail = '', accen
   setDomText(elements.subtitle, subtitle);
   setDomText(elements.detail, detail);
   elements.root?.style.setProperty('--scene-accent', THEME_ACCENTS[accentKey] || THEME_ACCENTS.forest);
+  if (elements.root) elements.root.dataset.theme = accentKey || 'forest';
   return elements.root;
 }
 
+function finishSceneIntro() {
+  if (!sceneIntroActive) return;
+  if (sceneRef?.time && sceneIntroStartedAt > 0) {
+    runStartMs += Math.max(0, sceneRef.time.now - sceneIntroStartedAt);
+  }
+  sceneIntroActive = false;
+  sceneIntroStartedAt = 0;
+  resetSceneTransition();
+  if (!gamePaused && !gameWon && !gameOver && !isHelpDialogOpen() && !isLevelCompleteDialogOpen()) {
+    sceneRef?.physics?.world?.resume();
+  }
+}
+
 function showLevelIntroTransition() {
-  const detailParts = [`Aufgabe · ${currentLevelChallenge?.label || 'Aufwärmen'}`];
+  const cinematic = currentLevel <= THEMES.length || currentLevel % BOSS_LEVEL_INTERVAL === 0;
+  const detailParts = [
+    `Aufgabe · ${currentLevelChallenge?.label || 'Aufwärmen'}`,
+    getThemeGameplay().cue,
+  ];
   if (currentDiscoveryRoute) detailParts.push(`Entdeckung · ${currentDiscoveryRoute.label}`);
   const root = setSceneTransitionContent({
     kicker: currentLevel % BOSS_LEVEL_INTERVAL === 0 ? 'Bossjagd' : `Jagd ${currentLevel} von ${MAX_LEVEL}`,
@@ -2973,10 +3044,33 @@ function showLevelIntroTransition() {
   });
   if (!root) return;
   const preview = new URLSearchParams(window.location.search).get('preview') === 'transition';
-  root.className = `scene-transition is-visible is-enter${preview ? ' is-preview' : ''}`;
+  root.className = `scene-transition is-visible is-enter${cinematic ? '' : ' is-compact'}${preview ? ' is-preview' : ''}`;
   root.setAttribute('aria-hidden', 'false');
+  sceneIntroActive = true;
+  sceneIntroStartedAt = sceneRef?.time?.now || 0;
+  sceneRef?.physics?.world?.pause();
   if (preview) return;
-  sceneTransitionTimer = window.setTimeout(resetSceneTransition, reducedMotionPreferred() ? 180 : 1800);
+  const duration = reducedMotionPreferred() ? 650 : cinematic ? 1650 : 780;
+  sceneTransitionTimer = window.setTimeout(finishSceneIntro, duration);
+}
+
+function setupSceneTransitionControls() {
+  const skipButton = document.getElementById('skipSceneTransition');
+  if (skipButton) {
+    skipButton.onclick = (event) => {
+      event.preventDefault();
+      if (URL_QUERY.get('preview') !== 'transition') finishSceneIntro();
+    };
+  }
+  if (sceneTransitionControlsBound) return;
+  sceneTransitionControlsBound = true;
+  window.addEventListener('keydown', (event) => {
+    if (!sceneIntroActive || URL_QUERY.get('preview') === 'transition') return;
+    if (!['Space', 'Enter', 'Escape'].includes(event.code)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    finishSceneIntro();
+  }, { capture: true });
 }
 
 function runSceneExit({ kicker, title, subtitle, accentKey, onComplete }) {
@@ -3504,7 +3598,7 @@ function togglePause(forceState = null, silent = false) {
     if (!silent) setStatus('Spiel pausiert.', 0);
     return;
   }
-  sceneRef.physics.world.resume();
+  if (!sceneIntroActive) sceneRef.physics.world.resume();
   resumeAudioLayers();
   if (!silent) setStatus('Weiter gehts.', 900);
 }

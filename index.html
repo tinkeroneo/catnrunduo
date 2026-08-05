@@ -13,7 +13,7 @@
   <main class="game-shell">
     <header class="hud">
       <h1>Cat Platformer</h1>
-      <p id="controlsHint">Pfeile oder A/D: laufen · Leertaste, W oder ↑: springen · P: Pause · R: Neustart · M: Audio</p>
+      <p id="controlsHint">Pfeile oder A/D: laufen · Leertaste, W oder ↑: springen · P: Pause · R: Neustart · M: Audio · Intro: Leertaste überspringt</p>
     </header>
     <nav id="gameControls" class="game-controls" aria-label="Spielaktionen">
       <button id="restartControl" type="button" aria-label="Lauf neu starten" title="Lauf neu starten">↻</button>
@@ -56,6 +56,7 @@
         <strong id="sceneTransitionTitle">Level 1</strong>
         <span id="sceneTransitionSubtitle">Wald · Aufwärmen</span>
         <span id="sceneTransitionDetail" class="scene-transition__detail">Alle Mäuse finden und die Flagge erreichen</span>
+        <button id="skipSceneTransition" class="scene-transition__skip" type="button">Direkt loslaufen</button>
       </div>
     </section>
     <div id="game" role="img" aria-label="Seitlich scrollendes Plattformspiel mit einer Katze" aria-describedby="controlsHint"></div>

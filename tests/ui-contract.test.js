@@ -76,10 +76,25 @@ test('level scenes have a cinematic handoff with a reduced-motion fallback', () 
 
   assert.match(html, /id="sceneTransition"[^>]*aria-live="polite"/);
   assert.match(html, /id="sceneTransitionTitle"/);
+  assert.match(html, /id="skipSceneTransition"[^>]*>Direkt loslaufen<\/button>/);
   assert.match(css, /@keyframes scene-curtain-open/);
+  assert.match(css, /\.scene-transition\.is-enter\.is-compact/);
   assert.match(css, /\.scene-transition\.is-exit/);
   assert.match(css, /\.scene-transition\.is-preview/);
   assert.match(game, /function showLevelIntroTransition\(\)/);
+  assert.match(game, /sceneRef\?\.physics\?\.world\?\.pause\(\)/);
+  assert.match(game, /function finishSceneIntro\(\)/);
+  assert.match(game, /cinematic \? 1650 : 780/);
   assert.match(game, /function runSceneExit\(/);
   assert.match(game, /preview'\) === 'transition'/);
+});
+
+test('world themes change the feel of movement and landing feedback', () => {
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  assert.match(game, /gravityMul: 0\.92/);
+  assert.match(game, /runMul: 1\.08/);
+  assert.match(game, /jumpMul: 1\.07/);
+  assert.match(game, /function updateLandingFeedback\(\)/);
+  assert.match(game, /spawnActionBurst\(player\.x, player\.body\.bottom/);
 });

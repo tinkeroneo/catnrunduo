@@ -1,6 +1,6 @@
 # Produktrichtung: Cat Platformer
 
-Stand: 2026-08-05
+Stand: 2026-08-06
 
 ## Zielbild
 
@@ -24,8 +24,10 @@ Stand: 2026-08-05
 | P1 | Levelabschlusskarte | Bonus, Aufgabe, Leistung, Entdeckungsbonus und nächstes Level werden vor dem bewussten Weitergehen zusammengefasst | umgesetzt |
 | P1 | Entdeckungen | deterministische Goldmaus-Nebenrouten ab Level 3 erhöhen Risiko, Belohnung und Wiederspielwert, ohne den Abschluss zu blockieren | umgesetzt |
 | P1 | Szeneninszenierung | Levelkarte, Vorhang, Kamerablende und finales Reisebild geben Start, Wechsel und Abschluss einen eigenen Rhythmus | umgesetzt |
-| P1 | Levelauswahl/Abzeichen | bereits erreichte Level, Bestzeit und Aufgabenstatus werden außerhalb des Runs vergleichbar | Backlog |
-| P2 | Zusätzliche Animationen | Landung, Bremsen, Treffer und Sieg erhalten eigene Sprite-/Effektzustände | benötigt Assetarbeit |
+| P1 | Sichere Übergänge | Physik und Spielzeit pausieren; wichtige Etappen laufen filmisch, normale kompakt und beide sind überspringbar | umgesetzt |
+| P1 | Reviercharakter | Wald, Ozean, Wüste, Berg und Stadt verändern Schwerkraft, Lauf- oder Sprunggefühl nachvollziehbar | umgesetzt |
+| P1 | Levelauswahl/Abzeichen | erreichte Level, Bestzeit, Aufgabe und Entdeckung werden auf einer persistenten 52-Etappen-Karte vergleichbar | umgesetzt |
+| P2 | Zusätzliche Animationen | Landungen besitzen bereits Squash, Partikel und optionalen Kameraimpuls; Bremsen, Treffer und Sieg brauchen eigene Spritezustände | teilweise umgesetzt; weitere Assetarbeit |
 | P2 | Tägliche Route | reproduzierbarer Seed mit Tageswertung schafft einen kurzen Wiederkehrgrund | Backlog |
 
 ## Erfolgskriterien dieser Iteration
@@ -34,4 +36,6 @@ Stand: 2026-08-05
 - Goldmaus-Routen sind sichtbar, optional und für Level 3 bis 52 deterministisch abgesichert.
 - Die Einführungsaufgabe wird im Abschlussbericht neutral statt fälschlich als Fehlschlag gewertet.
 - Oberfläche, Abschlussdialog und Entdeckungs-HUD bleiben auf schmalen Viewports bedienbar und zoomfähig.
+- Intro, Menüs, Pause und Szenenwechsel verfälschen weder Lauf- noch Etappenzeit.
+- Die Reisekarte sperrt zukünftige Level, erlaubt Wiederholungen und behält jeweils das beste Ergebnis.
 - Automatische Tests, Browser-Smoke und Release-Budget bleiben grün.

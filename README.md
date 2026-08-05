@@ -20,12 +20,12 @@ Danach läuft das Spiel unter `http://127.0.0.1:4174`. Der Entwicklungsserver bi
 - P: Pause, R: Lauf neu starten, M: Audio wechseln
 - Touch: horizontal ziehen zum Laufen, nach oben wischen zum Springen
 
-Neustart, Pause, Audio, Touch-Profil und Hilfe sind zusätzlich als benannte Buttons verfügbar. Während eines aktiven Laufs muss der Neustart innerhalb von 2,5 Sekunden bestätigt werden. Nach jedem abgeschlossenen Level wird der Lauf gespeichert und beim nächsten Start zum Fortsetzen angeboten.
+Neustart, Pause, Audio, Touch-Profil, Reisekarte und Hilfe sind zusätzlich als benannte Buttons verfügbar. Während eines aktiven Laufs muss der Neustart innerhalb von 2,5 Sekunden bestätigt werden. Nach jedem abgeschlossenen Level wird der Lauf gespeichert und beim nächsten Start zum Fortsetzen angeboten. Die Reisekarte hält Bestzeit, Aufgabe und Entdeckung je Level fest und startet freigeschaltete Etappen als neuen Lauf.
 
 ## Entwicklung und Qualität
 
 ```powershell
-npm run check   # ESLint, 14 Node-Tests und Headless-Chrome-Smoke-Test
+npm run check   # ESLint, Node-Tests und Headless-Chrome-Smoke-Test
 npm run build   # erzeugt das manifestgesteuerte Release in dist/
 ```
 

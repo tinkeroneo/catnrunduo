@@ -20,6 +20,7 @@
       <button id="pauseControl" type="button" aria-label="Spiel pausieren" aria-pressed="false" title="Pause">⏸</button>
       <button id="audioControl" type="button" aria-label="Audio wechseln" aria-pressed="true" title="Audio wechseln">♪</button>
       <button id="touchProfileControl" type="button" aria-label="Touch-Profil Einfach" aria-pressed="false" title="Touch-Profil wechseln">◕</button>
+      <button id="journeyControl" type="button" aria-label="Reisekarte öffnen" title="Reisekarte">🗺</button>
       <button id="helpControl" type="button" aria-label="Spielhilfe öffnen" title="Spielhilfe">❓</button>
     </nav>
     <section id="runHud" class="run-hud" aria-label="Aktueller Lauf">
@@ -101,7 +102,17 @@
     <p id="streakResult" class="streak-result">Aufgabenserie: 0</p>
     <button id="continueLevelButton" type="button">Weiter zu Level 2</button>
   </dialog>
+  <dialog id="journeyDialog" class="run-dialog journey-dialog" aria-labelledby="journeyTitle" aria-describedby="journeyLead">
+    <span class="result-kicker">52 Jagden · 5 Reviere</span>
+    <h2 id="journeyTitle">Deine Reisekarte</h2>
+    <p id="journeyLead">Abgeschlossene Etappen bleiben anwählbar. Eine Auswahl startet dort einen neuen Etappenlauf.</p>
+    <div id="journeySummary" class="journey-summary" aria-live="polite"></div>
+    <div id="journeyMap" class="journey-map" aria-label="Levelauswahl"></div>
+    <div class="journey-legend" aria-label="Legende"><span>★ Aufgabe</span><span>◆ Entdeckung</span><span>👑 Boss</span></div>
+    <button id="closeJourneyButton" type="button">Zurück zum Lauf</button>
+  </dialog>
   <script src="src/run-storage.js"></script>
+  <script src="src/journey-progress.js"></script>
   <script src="src/level-generator.js"></script>
   <script src="src/progression.js"></script>
   <script src="src/ui-text.js"></script>

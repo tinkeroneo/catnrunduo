@@ -40,7 +40,7 @@ body {
   background: linear-gradient(135deg, #ffffffee, #edf7ffdc);
   border-radius: 18px;
   min-height: 72px;
-  padding: 10px 300px 10px 14px;
+  padding: 10px 350px 10px 14px;
   box-shadow: 0 12px 34px #0f2a4f24;
 }
 
@@ -226,6 +226,120 @@ body {
 .level-complete-dialog > button {
   width: 100%;
   background: linear-gradient(135deg, #2e628f, #244a78);
+}
+
+.journey-dialog {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at 8% 0, #c4f4d84d, transparent 34%),
+    radial-gradient(circle at 95% 7%, #a4daf251, transparent 30%),
+    #f8fcff;
+}
+
+.journey-dialog > p {
+  margin-bottom: 12px;
+}
+
+.journey-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.journey-summary span,
+.journey-legend span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #38536f;
+  background: #e7f0f7;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.journey-map {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(54px, 1fr));
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #d8e5ef;
+  border-radius: 16px;
+  background: #eaf3f8a8;
+}
+
+.journey-stop {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 62px !important;
+  padding: 6px !important;
+  border: 2px solid transparent !important;
+  border-radius: 13px !important;
+  color: #243c56 !important;
+  background: #fff !important;
+  text-align: left;
+  box-shadow: 0 4px 12px #19324f16;
+}
+
+.journey-stop strong,
+.journey-stop small {
+  display: block;
+}
+
+.journey-stop strong {
+  align-self: start;
+  font-size: 0.84rem;
+}
+
+.journey-stop small {
+  align-self: end;
+  overflow: hidden;
+  color: #5c7288;
+  font-size: 0.61rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journey-stop[data-theme="forest"] { border-top-color: #56b783 !important; }
+.journey-stop[data-theme="ocean"] { border-top-color: #54bddd !important; }
+.journey-stop[data-theme="desert"] { border-top-color: #e3a044 !important; }
+.journey-stop[data-theme="mountain"] { border-top-color: #8599c8 !important; }
+.journey-stop[data-theme="city"] { border-top-color: #ce75aa !important; }
+
+.journey-stop.is-current {
+  outline: 3px solid #ffb33f;
+  outline-offset: 1px;
+}
+
+.journey-stop.is-cleared {
+  background: linear-gradient(145deg, #fff, #e8f7efff) !important;
+}
+
+.journey-stop.is-boss strong::after {
+  content: " 👑";
+  font-size: 0.68rem;
+}
+
+.journey-stop:disabled {
+  color: #8190a0 !important;
+  background: #dfe7ed !important;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+.journey-legend {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.journey-dialog > button {
+  width: 100%;
 }
 
 .game-controls {
@@ -828,6 +942,16 @@ canvas {
   .run-status {
     max-width: calc(100vw - 16px);
   }
+
+  .journey-dialog {
+    max-height: calc(var(--app-height, 100dvh) - 28px);
+    padding: 17px;
+  }
+
+  .journey-map {
+    grid-template-columns: repeat(5, minmax(50px, 1fr));
+    padding: 10px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -838,6 +962,7 @@ canvas {
   .game-controls button {
     width: 44px;
     height: 44px;
+    font-size: 1.15rem;
   }
 
   .run-hud__mission {

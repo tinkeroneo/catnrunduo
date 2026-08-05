@@ -20,18 +20,34 @@ test('game actions and onboarding are semantic and keyboard reachable', () => {
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
 
-  for (const id of ['restartControl', 'pauseControl', 'audioControl', 'touchProfileControl', 'helpControl']) {
+  for (const id of ['restartControl', 'pauseControl', 'audioControl', 'touchProfileControl', 'journeyControl', 'helpControl']) {
     assert.match(html, new RegExp(`<button id="${id}"[^>]*aria-label=`));
   }
   assert.match(html, /<dialog id="helpDialog"[^>]*aria-labelledby="helpTitle"[^>]*aria-describedby="helpIntro"/);
   assert.match(html, /id="game"[^>]*aria-label="Seitlich scrollendes Plattformspiel mit einer Katze"/);
   assert.ok(html.indexOf('src/ui-text.js') < html.indexOf('src/game.js'));
   assert.ok(html.indexOf('src/progression.js') < html.indexOf('src/game.js'));
+  assert.ok(html.indexOf('src/journey-progress.js') < html.indexOf('src/game.js'));
   assert.match(css, /\.game-controls button \{[\s\S]*width: 46px;[\s\S]*height: 46px/);
   assert.match(css, /\.game-controls button:focus-visible/);
   assert.match(game, /catPlatformer\.onboardingSeen\.v1/);
-  assert.match(game, /if \(isHelpDialogOpen\(\) \|\| isLevelCompleteDialogOpen\(\)\) return/);
+  assert.match(game, /if \(isHelpDialogOpen\(\) \|\| isLevelCompleteDialogOpen\(\) \|\| isJourneyDialogOpen\(\)\) return/);
   assert.doesNotMatch(game, /createMobileRoundButton/);
+});
+
+test('journey map persists mastery badges and starts only unlocked stages', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  assert.match(html, /<dialog id="journeyDialog"[^>]*aria-labelledby="journeyTitle"/);
+  assert.match(html, /id="journeyMap"[^>]*aria-label="Levelauswahl"/);
+  assert.match(css, /\.journey-map \{/);
+  assert.match(css, /\.journey-stop\.is-boss/);
+  assert.match(game, /function recordCurrentLevelJourney\(/);
+  assert.match(game, /function renderJourneyMap\(/);
+  assert.match(game, /level > journeyProgress\.maxUnlocked/);
+  assert.match(game, /pauseGameplayClock\('scene-intro'\)/);
 });
 
 test('mission HUD exposes progress, challenge and combo feedback', () => {

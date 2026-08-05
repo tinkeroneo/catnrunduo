@@ -71,6 +71,7 @@ const FORCE_TEST_LEVEL = URL_QUERY.get('testlevel') === '1';
 const FORCE_BOSS_TEST = URL_QUERY.get('boss') === '1';
 const BGM_QUERY_MODE = URL_QUERY.has('bgm') ? URL_QUERY.get('bgm').toLowerCase() : null;
 const RUN_STORAGE = window.CatRunStorage;
+const JOURNEY_PROGRESS = window.CatJourneyProgress;
 const UI_TEXT = window.CatUiText;
 const PROGRESSION = window.CatProgression;
 const COLLIDER_PROFILES = {
@@ -258,6 +259,9 @@ let hitCooldown = 0;
 let boostUntilMs = 0;
 let score = 0;
 let runStartMs = 0;
+let levelStartMs = 0;
+let gameplayClockPausedAt = 0;
+const gameplayClockPauseReasons = new Set();
 let restoredRunElapsedMs = null;
 let restartConfirmationUntilMs = 0;
 let bestTimeMs = null;
@@ -295,7 +299,10 @@ let audioToggleButton;
 let helpDialogBound = false;
 let helpWasPaused = false;
 let helpOpenedThisSession = false;
-let levelCompleteOpenedAt = 0;
+let journeyProgress = JOURNEY_PROGRESS?.createJourney?.() || { version: 1, maxUnlocked: 1, levels: {} };
+let journeyProgressLoaded = false;
+let journeyDialogBound = false;
+let journeyWasPaused = false;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -326,7 +333,6 @@ let domHud = null;
 let sceneTransitionTimer = 0;
 let sceneTransitionInFlight = false;
 let sceneIntroActive = false;
-let sceneIntroStartedAt = 0;
 let sceneTransitionControlsBound = false;
 let playerWasGrounded = true;
 let lastAirborneVelocityY = 0;
@@ -748,7 +754,6 @@ function preload() {
 function create() {
   closeLevelCompleteDialog();
   resetSceneTransition();
-  levelCompleteOpenedAt = 0;
   const restoredThisScene = Number.isFinite(restoredRunElapsedMs);
   gameWon = false;
   gameOver = false;
@@ -779,6 +784,10 @@ function create() {
   respawnX = 100;
   respawnY = WORLD_HEIGHT - 120;
   sceneRef = this;
+  levelStartMs = this.time.now;
+  gameplayClockPausedAt = 0;
+  gameplayClockPauseReasons.clear();
+  loadJourneyProgress();
 
   if (currentLevel === 1) {
     try {
@@ -1242,6 +1251,7 @@ function create() {
   );
   syncActionButtonStates();
   setupHelpDialog();
+  setupJourneyDialog();
   setupSceneTransitionControls();
   initDomRunHud();
 
@@ -1385,6 +1395,7 @@ function reachFlag() {
     challengeMissStreak += 1;
   }
   score += levelClearBonus + challengeBonus;
+  recordCurrentLevelJourney(challengeTracked && challengeResult.completed);
   scoreText.setText(getHudScoreSummary());
   celebrateLevelClear();
   triggerSfx('level_clear');
@@ -1419,7 +1430,7 @@ function reachFlag() {
   }
 
   gameWon = true;
-  const runTimeMs = Math.max(0, Math.floor(sceneRef.time.now - runStartMs));
+  const runTimeMs = getRunElapsedMs();
   const lifeBonus = lives * 250;
   score += lifeBonus;
   scoreText.setText(getHudScoreSummary());
@@ -2315,7 +2326,7 @@ function update() {
   syncAnimationTiming();
   syncDomRunHud();
 
-  if (isHelpDialogOpen() || isLevelCompleteDialogOpen()) return;
+  if (isHelpDialogOpen() || isLevelCompleteDialogOpen() || isJourneyDialogOpen()) return;
   if (sceneIntroActive) return;
 
   if (Phaser.Input.Keyboard.JustDown(debugKey)) {
@@ -2998,7 +3009,6 @@ function resetSceneTransition() {
   sceneTransitionTimer = 0;
   sceneTransitionInFlight = false;
   sceneIntroActive = false;
-  sceneIntroStartedAt = 0;
   const { root } = getSceneTransitionElements();
   if (!root) return;
   root.className = 'scene-transition';
@@ -3018,13 +3028,10 @@ function setSceneTransitionContent({ kicker, title, subtitle, detail = '', accen
 
 function finishSceneIntro() {
   if (!sceneIntroActive) return;
-  if (sceneRef?.time && sceneIntroStartedAt > 0) {
-    runStartMs += Math.max(0, sceneRef.time.now - sceneIntroStartedAt);
-  }
   sceneIntroActive = false;
-  sceneIntroStartedAt = 0;
+  resumeGameplayClock('scene-intro');
   resetSceneTransition();
-  if (!gamePaused && !gameWon && !gameOver && !isHelpDialogOpen() && !isLevelCompleteDialogOpen()) {
+  if (!gamePaused && !gameWon && !gameOver && !isHelpDialogOpen() && !isLevelCompleteDialogOpen() && !isJourneyDialogOpen()) {
     sceneRef?.physics?.world?.resume();
   }
 }
@@ -3047,7 +3054,7 @@ function showLevelIntroTransition() {
   root.className = `scene-transition is-visible is-enter${cinematic ? '' : ' is-compact'}${preview ? ' is-preview' : ''}`;
   root.setAttribute('aria-hidden', 'false');
   sceneIntroActive = true;
-  sceneIntroStartedAt = sceneRef?.time?.now || 0;
+  pauseGameplayClock('scene-intro');
   sceneRef?.physics?.world?.pause();
   if (preview) return;
   const duration = reducedMotionPreferred() ? 650 : cinematic ? 1650 : 780;
@@ -3082,10 +3089,12 @@ function runSceneExit({ kicker, title, subtitle, accentKey, onComplete }) {
     root.setAttribute('aria-hidden', 'false');
   }
   const duration = reducedMotionPreferred() ? 0 : 430;
+  pauseGameplayClock('scene-exit');
   sceneRef?.physics?.world?.pause();
   if (duration > 0) sceneRef?.cameras?.main?.fadeOut(duration, 16, 36, 58);
   const finish = () => {
     sceneTransitionInFlight = false;
+    resumeGameplayClock('scene-exit');
     onComplete?.();
   };
   if (duration <= 0 || !sceneRef?.time) finish();
@@ -3510,9 +3519,32 @@ function updateCameraLookAhead() {
   sceneRef.cameras.main.setFollowOffset(Math.round(cameraLookAheadX), 0);
 }
 
+function pauseGameplayClock(reason) {
+  if (!reason || gameplayClockPauseReasons.has(reason)) return;
+  if (gameplayClockPauseReasons.size === 0) gameplayClockPausedAt = sceneRef?.time?.now || 0;
+  gameplayClockPauseReasons.add(reason);
+}
+
+function resumeGameplayClock(reason) {
+  if (!gameplayClockPauseReasons.delete(reason) || gameplayClockPauseReasons.size > 0) return;
+  if (sceneRef?.time && gameplayClockPausedAt > 0) {
+    const pausedMs = Math.max(0, sceneRef.time.now - gameplayClockPausedAt);
+    runStartMs += pausedMs;
+    levelStartMs += pausedMs;
+  }
+  gameplayClockPausedAt = 0;
+}
+
 function getRunElapsedMs() {
   if (!sceneRef?.time) return Math.max(0, Math.floor(restoredRunElapsedMs || 0));
-  return Math.max(0, Math.floor(sceneRef.time.now - runStartMs));
+  const activeNow = gameplayClockPausedAt > 0 ? gameplayClockPausedAt : sceneRef.time.now;
+  return Math.max(0, Math.floor(activeNow - runStartMs));
+}
+
+function getLevelElapsedMs() {
+  if (!sceneRef?.time) return 0;
+  const activeNow = gameplayClockPausedAt > 0 ? gameplayClockPausedAt : sceneRef.time.now;
+  return Math.max(0, Math.floor(activeNow - levelStartMs));
 }
 
 function saveRunProgress() {
@@ -3539,6 +3571,41 @@ function clearSavedRun() {
   } catch {
     // A blocked storage backend must not break gameplay.
   }
+}
+
+function loadJourneyProgress() {
+  if (journeyProgressLoaded) return journeyProgress;
+  journeyProgressLoaded = true;
+  try {
+    journeyProgress = JOURNEY_PROGRESS?.loadJourney?.(window.localStorage, MAX_LEVEL) || journeyProgress;
+  } catch {
+    journeyProgress = JOURNEY_PROGRESS?.createJourney?.() || journeyProgress;
+  }
+  if (currentLevel > journeyProgress.maxUnlocked) {
+    journeyProgress.maxUnlocked = Math.min(MAX_LEVEL, currentLevel);
+    saveJourneyProgress();
+  }
+  return journeyProgress;
+}
+
+function saveJourneyProgress() {
+  try {
+    return JOURNEY_PROGRESS?.saveJourney?.(window.localStorage, journeyProgress, MAX_LEVEL) || false;
+  } catch {
+    return false;
+  }
+}
+
+function recordCurrentLevelJourney(challengeCompleted) {
+  if (!JOURNEY_PROGRESS?.recordLevelResult) return;
+  journeyProgress = JOURNEY_PROGRESS.recordLevelResult(journeyProgress, {
+    level: currentLevel,
+    timeMs: getLevelElapsedMs(),
+    score,
+    challenge: challengeCompleted === true,
+    discovery: discoveryMiceTotal > 0 && discoveryMiceCollected === discoveryMiceTotal,
+  }, MAX_LEVEL);
+  saveJourneyProgress();
 }
 
 function applySavedRun(run) {
@@ -3593,11 +3660,13 @@ function togglePause(forceState = null, silent = false) {
   pauseText?.setVisible(gamePaused);
   setMobileButtonIcon(pauseTouchButton, gamePaused ? MOBILE_BUTTON_ICONS.play : MOBILE_BUTTON_ICONS.pause);
   if (gamePaused) {
+    pauseGameplayClock('manual-pause');
     sceneRef.physics.world.pause();
     pauseAudioLayers();
     if (!silent) setStatus('Spiel pausiert.', 0);
     return;
   }
+  resumeGameplayClock('manual-pause');
   if (!sceneIntroActive) sceneRef.physics.world.resume();
   resumeAudioLayers();
   if (!silent) setStatus('Weiter gehts.', 900);
@@ -3714,7 +3783,7 @@ function showLevelCompleteDialog(summary) {
     advanceToNextLevel(summary.nextLevel);
   };
   dialog.oncancel = (event) => event.preventDefault();
-  levelCompleteOpenedAt = sceneRef?.time?.now || 0;
+  pauseGameplayClock('level-complete');
   sceneRef?.physics?.world?.pause();
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
@@ -3722,10 +3791,7 @@ function showLevelCompleteDialog(summary) {
 }
 
 function advanceToNextLevel(nextLevel) {
-  if (sceneRef?.time && levelCompleteOpenedAt > 0) {
-    runStartMs += Math.max(0, sceneRef.time.now - levelCompleteOpenedAt);
-  }
-  levelCompleteOpenedAt = 0;
+  resumeGameplayClock('level-complete');
   closeLevelCompleteDialog();
   currentLevel = nextLevel;
   saveRunProgress();
@@ -3796,6 +3862,131 @@ function closeHelpDialog(dialog = document.getElementById('helpDialog')) {
   else dialog.removeAttribute('open');
   if (!helpWasPaused && gamePaused) togglePause(false, true);
   document.getElementById('helpControl')?.focus();
+}
+
+function isJourneyDialogOpen() {
+  const dialog = document.getElementById('journeyDialog');
+  return Boolean(dialog?.open || dialog?.hasAttribute('open'));
+}
+
+function setupJourneyDialog() {
+  const dialog = document.getElementById('journeyDialog');
+  const openButton = document.getElementById('journeyControl');
+  const closeButton = document.getElementById('closeJourneyButton');
+  if (!dialog || !openButton || !closeButton) return;
+
+  openButton.onclick = (event) => {
+    event.preventDefault();
+    openJourneyDialog(dialog);
+  };
+  closeButton.onclick = (event) => {
+    event.preventDefault();
+    closeJourneyDialog(dialog);
+  };
+  if (!journeyDialogBound) {
+    journeyDialogBound = true;
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      closeJourneyDialog(dialog);
+    });
+  }
+}
+
+function renderJourneyMap() {
+  loadJourneyProgress();
+  const map = document.getElementById('journeyMap');
+  const summary = document.getElementById('journeySummary');
+  if (!map || !summary) return;
+  const counts = JOURNEY_PROGRESS?.getJourneyCounts?.(journeyProgress, MAX_LEVEL) || {
+    cleared: 0,
+    challenges: 0,
+    discoveries: 0,
+  };
+  summary.replaceChildren();
+  [
+    `${counts.cleared} / ${MAX_LEVEL} geschafft`,
+    `${counts.challenges} Aufgaben`,
+    `${counts.discoveries} Entdeckungen`,
+  ].forEach((label) => {
+    const badge = document.createElement('span');
+    badge.textContent = label;
+    summary.append(badge);
+  });
+
+  map.replaceChildren();
+  for (let level = 1; level <= MAX_LEVEL; level += 1) {
+    const record = journeyProgress.levels?.[level];
+    const unlocked = level <= journeyProgress.maxUnlocked;
+    const theme = getThemeForLevel(level);
+    const badges = record ? `${record.challenge ? '★' : '·'}${record.discovery ? '◆' : '·'}` : '';
+    const detail = record?.bestTimeMs != null
+      ? `${formatMs(record.bestTimeMs)} ${badges}`
+      : unlocked ? 'Neue Jagd' : 'Gesperrt';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = [
+      'journey-stop',
+      record ? 'is-cleared' : '',
+      level === currentLevel ? 'is-current' : '',
+      level % BOSS_LEVEL_INTERVAL === 0 ? 'is-boss' : '',
+    ].filter(Boolean).join(' ');
+    button.dataset.theme = theme.key;
+    button.disabled = !unlocked;
+    button.setAttribute(
+      'aria-label',
+      `Level ${level}, ${theme.label}, ${record ? `Bestzeit ${formatMs(record.bestTimeMs || 0)}` : detail}`,
+    );
+    const title = document.createElement('strong');
+    title.textContent = record ? `✓ ${level}` : `${level}`;
+    const meta = document.createElement('small');
+    meta.textContent = detail;
+    button.append(title, meta);
+    if (unlocked) button.addEventListener('click', () => startJourneyLevel(level));
+    map.append(button);
+  }
+}
+
+function openJourneyDialog(dialog = document.getElementById('journeyDialog')) {
+  if (!dialog || dialog.open || gameWon || gameOver) return;
+  renderJourneyMap();
+  journeyWasPaused = gamePaused;
+  if (!gamePaused) togglePause(true, true);
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  document.querySelector('.journey-stop.is-current:not(:disabled)')?.focus();
+}
+
+function closeJourneyDialog(dialog = document.getElementById('journeyDialog')) {
+  if (!dialog || (!dialog.open && !dialog.hasAttribute('open'))) return;
+  if (dialog.open && typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+  if (!journeyWasPaused && gamePaused) togglePause(false, true);
+  document.getElementById('journeyControl')?.focus();
+}
+
+function startJourneyLevel(level) {
+  if (!Number.isSafeInteger(level) || level < 1 || level > journeyProgress.maxUnlocked) return;
+  closeJourneyDialog();
+  clearSavedRun();
+  currentLevel = level;
+  lives = 3;
+  score = 0;
+  totalMiceCollected = 0;
+  nextMouseLifeMilestone = MICE_PER_EXTRA_LIFE;
+  mouseComboCount = 0;
+  mouseComboExpiresAt = 0;
+  challengeSuccessStreak = 0;
+  challengeMissStreak = 0;
+  restoredRunElapsedMs = 0;
+  gameWon = true;
+  const theme = getThemeForLevel(level);
+  runSceneExit({
+    kicker: 'Etappenlauf',
+    title: `Auf zu Level ${level}`,
+    subtitle: `${theme.label} · ein neuer Lauf beginnt`,
+    accentKey: theme.key,
+    onComplete: () => sceneRef?.scene?.restart(),
+  });
 }
 
 function resolveTouchTuning(scene) {

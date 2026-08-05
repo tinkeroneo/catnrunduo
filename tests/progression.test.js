@@ -3,6 +3,7 @@ const test = require('node:test');
 
 const {
   calculateChallengeBonus,
+  createLevelSummary,
   evaluateLevelChallenge,
   getLevelChallenge,
   getLevelModifier,
@@ -44,4 +45,42 @@ test('task bonus applies modifier and a capped non-negative streak', () => {
   assert.equal(calculateChallengeBonus(100, -2, modifier), 110);
   assert.equal(calculateChallengeBonus(100, 2, modifier), 132);
   assert.equal(calculateChallengeBonus(100, 99, modifier), 143);
+});
+
+test('level summary distinguishes neutral introduction, success and missed tasks', () => {
+  const neutral = createLevelSummary({ level: 1, levelClearBonus: 500, score: 900 });
+  assert.equal(neutral.challengeState, 'neutral');
+  assert.equal(neutral.challengeText, 'Einführung abgeschlossen');
+  assert.equal(neutral.totalBonus, 500);
+
+  const completed = createLevelSummary({
+    level: 4,
+    nextLevel: 5,
+    levelClearBonus: 2000,
+    challengeLabel: '2 Gegner besiegen',
+    challengeState: 'completed',
+    challengeBonus: 350,
+    streak: 3,
+    livesLost: 0,
+    maxCombo: 6,
+    stomps: 2,
+    score: 7200,
+  });
+  assert.deepEqual(completed, {
+    title: 'Level 4 geschafft!',
+    challengeText: '2 Gegner besiegen geschafft',
+    challengeState: 'completed',
+    levelBonus: 2000,
+    challengeBonus: 350,
+    totalBonus: 2350,
+    streak: 3,
+    livesLost: 0,
+    maxCombo: 6,
+    stomps: 2,
+    score: 7200,
+    nextLevel: 5,
+  });
+
+  const missed = createLevelSummary({ challengeLabel: 'Kein Treffer', challengeState: 'missed' });
+  assert.equal(missed.challengeText, 'Kein Treffer verpasst');
 });

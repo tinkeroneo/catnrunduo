@@ -30,7 +30,7 @@ test('game actions and onboarding are semantic and keyboard reachable', () => {
   assert.match(css, /\.game-controls button \{[\s\S]*width: 46px;[\s\S]*height: 46px/);
   assert.match(css, /\.game-controls button:focus-visible/);
   assert.match(game, /catPlatformer\.onboardingSeen\.v1/);
-  assert.match(game, /if \(isHelpDialogOpen\(\)\) return/);
+  assert.match(game, /if \(isHelpDialogOpen\(\) \|\| isLevelCompleteDialogOpen\(\)\) return/);
   assert.doesNotMatch(game, /createMobileRoundButton/);
 });
 
@@ -49,4 +49,17 @@ test('mission HUD exposes progress, challenge and combo feedback', () => {
   assert.match(game, /function syncDomRunHud\(\)/);
   assert.match(game, /function spawnActionBurst\(/);
   assert.match(game, /function celebrateLevelClear\(/);
+});
+
+test('level completion is a deliberate accessible handoff instead of an automatic restart', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  assert.match(html, /<dialog id="levelCompleteDialog"[^>]*aria-labelledby="levelCompleteTitle"/);
+  assert.match(html, /id="levelBonusResult"/);
+  assert.match(html, /id="challengeBonusResult"/);
+  assert.match(html, /id="continueLevelButton"/);
+  assert.match(game, /PROGRESSION\.createLevelSummary\(/);
+  assert.match(game, /showLevelCompleteDialog\(summary\)/);
+  assert.doesNotMatch(game, /delayedCall\(700,[\s\S]*currentLevel \+= 1/);
 });

@@ -45,5 +45,50 @@
     return Math.round(baseBonus * modifierMultiplier * streakMultiplier);
   }
 
-  return { LEVEL_MODIFIERS, LEVEL_CHALLENGES, getLevelModifier, getLevelChallenge, evaluateLevelChallenge, calculateChallengeBonus };
+  function createLevelSummary({
+    level = 1,
+    nextLevel = level + 1,
+    levelClearBonus = 0,
+    challengeLabel = 'Aufgabe',
+    challengeState = 'neutral',
+    challengeBonus = 0,
+    streak = 0,
+    livesLost = 0,
+    maxCombo = 0,
+    stomps = 0,
+    score = 0,
+  } = {}) {
+    const safeLevelBonus = Math.max(0, Math.round(Number(levelClearBonus) || 0));
+    const safeChallengeBonus = Math.max(0, Math.round(Number(challengeBonus) || 0));
+    const state = ['completed', 'missed'].includes(challengeState) ? challengeState : 'neutral';
+    const challengeText = state === 'completed'
+      ? `${challengeLabel} geschafft`
+      : state === 'missed'
+        ? `${challengeLabel} verpasst`
+        : 'Einführung abgeschlossen';
+    return {
+      title: `Level ${Math.max(1, Math.floor(level))} geschafft!`,
+      challengeText,
+      challengeState: state,
+      levelBonus: safeLevelBonus,
+      challengeBonus: safeChallengeBonus,
+      totalBonus: safeLevelBonus + safeChallengeBonus,
+      streak: Math.max(0, Math.floor(Number(streak) || 0)),
+      livesLost: Math.max(0, Math.floor(Number(livesLost) || 0)),
+      maxCombo: Math.max(0, Math.floor(Number(maxCombo) || 0)),
+      stomps: Math.max(0, Math.floor(Number(stomps) || 0)),
+      score: Math.max(0, Math.floor(Number(score) || 0)),
+      nextLevel: Math.max(1, Math.floor(nextLevel)),
+    };
+  }
+
+  return {
+    LEVEL_MODIFIERS,
+    LEVEL_CHALLENGES,
+    getLevelModifier,
+    getLevelChallenge,
+    evaluateLevelChallenge,
+    calculateChallengeBonus,
+    createLevelSummary,
+  };
 });

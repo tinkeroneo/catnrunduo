@@ -118,6 +118,105 @@ body {
   width: 100%;
 }
 
+.level-complete-dialog {
+  overflow: hidden;
+  border: 1px solid #ffffffb8;
+  background:
+    radial-gradient(circle at 100% 0, #ffe59a66, transparent 42%),
+    linear-gradient(145deg, #fbfdffff, #edf7ffff);
+}
+
+.result-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #537291;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.level-result {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 18px 0 12px;
+}
+
+.level-result > span {
+  padding: 10px 7px;
+  border-radius: 12px;
+  background: #e9f2f9;
+  text-align: center;
+}
+
+.level-result small,
+.level-result strong {
+  display: block;
+}
+
+.level-result small {
+  color: #61738a;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.level-result strong {
+  margin-top: 3px;
+  font-size: 1.18rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-result .level-result__total {
+  color: #4b2e04;
+  background: linear-gradient(145deg, #ffe9a8, #ffd46e);
+}
+
+.challenge-result,
+.streak-result {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.challenge-result {
+  color: #32503e;
+  background: #dff5e7;
+}
+
+.challenge-result.is-missed {
+  color: #6a3b32;
+  background: #ffe4dc;
+}
+
+.performance-result {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.performance-result span {
+  padding: 6px 9px;
+  border: 1px solid #d9e6f1;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.76rem;
+}
+
+.streak-result {
+  margin-bottom: 14px !important;
+  color: #5a4574;
+  background: #eee7f8;
+}
+
+.level-complete-dialog > button {
+  width: 100%;
+  background: linear-gradient(135deg, #2e628f, #244a78);
+}
+
 .game-controls {
   position: absolute;
   top: 13px;

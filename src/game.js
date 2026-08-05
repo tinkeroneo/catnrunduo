@@ -283,6 +283,7 @@ let audioToggleButton;
 let helpDialogBound = false;
 let helpWasPaused = false;
 let helpOpenedThisSession = false;
+let levelCompleteOpenedAt = 0;
 let sceneRef;
 let parallaxLayers = [];
 let backgroundClouds = [];
@@ -726,6 +727,8 @@ function preload() {
 }
 
 function create() {
+  closeLevelCompleteDialog();
+  levelCompleteOpenedAt = 0;
   const restoredThisScene = Number.isFinite(restoredRunElapsedMs);
   gameWon = false;
   gameOver = false;
@@ -1292,10 +1295,11 @@ function reachFlag() {
   const challengeBonus = challengeResult.completed
     ? PROGRESSION.calculateChallengeBonus(challengeResult.bonus, challengeSuccessStreak, currentLevelModifier)
     : 0;
-  if (challengeResult.completed) {
+  const challengeTracked = currentLevelChallenge?.key !== 'intro';
+  if (challengeTracked && challengeResult.completed) {
     challengeSuccessStreak += 1;
     challengeMissStreak = 0;
-  } else {
+  } else if (challengeTracked) {
     challengeSuccessStreak = 0;
     challengeMissStreak += 1;
   }
@@ -1306,18 +1310,27 @@ function reachFlag() {
 
   if (currentLevel < MAX_LEVEL) {
     gameWon = true;
-    const challengePart = challengeResult.completed
-      ? ` Aufgabe geschafft (+${challengeBonus}) · Serie ${challengeSuccessStreak}`
-      : ' Aufgabe verpasst';
-    setStatus(`Level ${currentLevel} geschafft!${challengePart} Weiter zu Level ${currentLevel + 1}...`, 0);
+    const challengeState = !challengeTracked
+      ? 'neutral'
+      : challengeResult.completed ? 'completed' : 'missed';
+    const summary = PROGRESSION.createLevelSummary({
+      level: currentLevel,
+      nextLevel: currentLevel + 1,
+      levelClearBonus,
+      challengeLabel: currentLevelChallenge?.label,
+      challengeState,
+      challengeBonus,
+      streak: challengeSuccessStreak,
+      livesLost: levelLivesLost,
+      maxCombo: levelMaxCombo,
+      stomps: levelStomps,
+      score,
+    });
+    setStatus(`Level ${currentLevel} geschafft!`, 0);
     player.setVelocity(0, 0);
     player.anims.stop();
     setCatIdleTexture(player);
-    sceneRef.time.delayedCall(700, () => {
-      currentLevel += 1;
-      saveRunProgress();
-      sceneRef.scene.restart();
-    });
+    showLevelCompleteDialog(summary);
     return;
   }
 
@@ -2185,7 +2198,7 @@ function update() {
   syncAnimationTiming();
   syncDomRunHud();
 
-  if (isHelpDialogOpen()) return;
+  if (isHelpDialogOpen() || isLevelCompleteDialogOpen()) return;
 
   if (Phaser.Input.Keyboard.JustDown(debugKey)) {
     setArcadeDebug(sceneRef, !debugHitboxesActive);
@@ -3293,6 +3306,7 @@ function restartRun() {
   }
 
   restartConfirmationUntilMs = 0;
+  closeLevelCompleteDialog();
   if (gamePaused) {
     togglePause(false, true);
   }
@@ -3372,6 +3386,72 @@ function syncActionButtonStates() {
 
 function isHelpDialogOpen() {
   return Boolean(document.getElementById('helpDialog')?.open);
+}
+
+function isLevelCompleteDialogOpen() {
+  const dialog = document.getElementById('levelCompleteDialog');
+  return Boolean(dialog?.open || dialog?.hasAttribute('open'));
+}
+
+function closeLevelCompleteDialog() {
+  const dialog = document.getElementById('levelCompleteDialog');
+  if (!dialog || (!dialog.open && !dialog.hasAttribute('open'))) return;
+  if (dialog.open && typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+function showLevelCompleteDialog(summary) {
+  const dialog = document.getElementById('levelCompleteDialog');
+  const continueButton = document.getElementById('continueLevelButton');
+  if (!dialog || !continueButton) {
+    advanceToNextLevel(summary.nextLevel);
+    return;
+  }
+
+  const setResultText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+  setResultText('levelCompleteTitle', summary.title);
+  setResultText('levelCompleteLead', `${summary.score.toLocaleString('de-DE')} Punkte auf der gesamten Jagd.`);
+  setResultText('levelBonusResult', `+${summary.levelBonus.toLocaleString('de-DE')}`);
+  setResultText('challengeBonusResult', `+${summary.challengeBonus.toLocaleString('de-DE')}`);
+  setResultText('totalBonusResult', `+${summary.totalBonus.toLocaleString('de-DE')}`);
+  setResultText('challengeResult', summary.challengeText);
+  setResultText('comboResult', String(summary.maxCombo));
+  setResultText('stompsResult', String(summary.stomps));
+  setResultText('hitsResult', String(summary.livesLost));
+  setResultText(
+    'streakResult',
+    summary.challengeState === 'neutral'
+      ? 'Die Aufgabenserie startet im nächsten Level.'
+      : summary.streak > 0
+        ? `Aufgabenserie: ${summary.streak}`
+        : 'Neue Serie ab dem nächsten Aufgabenerfolg.',
+  );
+  document.getElementById('challengeResult')?.classList.toggle('is-missed', summary.challengeState === 'missed');
+  continueButton.textContent = `Weiter zu Level ${summary.nextLevel}`;
+  continueButton.onclick = (event) => {
+    event.preventDefault();
+    advanceToNextLevel(summary.nextLevel);
+  };
+  dialog.oncancel = (event) => event.preventDefault();
+  levelCompleteOpenedAt = sceneRef?.time?.now || 0;
+  sceneRef?.physics?.world?.pause();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  continueButton.focus();
+}
+
+function advanceToNextLevel(nextLevel) {
+  if (sceneRef?.time && levelCompleteOpenedAt > 0) {
+    runStartMs += Math.max(0, sceneRef.time.now - levelCompleteOpenedAt);
+  }
+  levelCompleteOpenedAt = 0;
+  closeLevelCompleteDialog();
+  currentLevel = nextLevel;
+  saveRunProgress();
+  sceneRef?.scene?.restart();
 }
 
 function setupHelpDialog() {

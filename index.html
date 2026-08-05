@@ -67,6 +67,24 @@
     </ul>
     <button id="closeHelpButton" type="button">Loslaufen</button>
   </dialog>
+  <dialog id="levelCompleteDialog" class="run-dialog level-complete-dialog" aria-labelledby="levelCompleteTitle" aria-describedby="levelCompleteLead">
+    <span class="result-kicker">Jagdbericht</span>
+    <h2 id="levelCompleteTitle">Level geschafft!</h2>
+    <p id="levelCompleteLead">Deine Beute ist gezählt.</p>
+    <div class="level-result" aria-label="Punkteübersicht">
+      <span><small>Levelbonus</small><strong id="levelBonusResult">+0</strong></span>
+      <span><small>Aufgabe</small><strong id="challengeBonusResult">+0</strong></span>
+      <span class="level-result__total"><small>Gesamt</small><strong id="totalBonusResult">+0</strong></span>
+    </div>
+    <p id="challengeResult" class="challenge-result">Einführung abgeschlossen</p>
+    <div class="performance-result" aria-label="Leistung in diesem Level">
+      <span>⚡ <strong id="comboResult">0</strong> Combo</span>
+      <span>🐾 <strong id="stompsResult">0</strong> Stomps</span>
+      <span>🛡️ <strong id="hitsResult">0</strong> Treffer</span>
+    </div>
+    <p id="streakResult" class="streak-result">Aufgabenserie: 0</p>
+    <button id="continueLevelButton" type="button">Weiter zu Level 2</button>
+  </dialog>
   <script src="src/run-storage.js"></script>
   <script src="src/level-generator.js"></script>
   <script src="src/progression.js"></script>

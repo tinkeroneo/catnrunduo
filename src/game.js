@@ -309,6 +309,7 @@ let cameraLookAheadX = 0;
 let touchProfileMode = 'easy';
 let debugHitboxesActive = false;
 let animationGlobalTimeScale = 1;
+let domHud = null;
 let touchControls = {
   movePointerId: null,
   moveMode: 'drag',
@@ -1073,7 +1074,8 @@ function create() {
       padding: { x: 8, y: 4 },
     })
     .setScrollFactor(0)
-    .setDepth(10);
+    .setDepth(10)
+    .setVisible(false);
 
   lifeText = this.add
     .text(16, 118, `Leben: ${'?'.repeat(lives)}`, {
@@ -1096,7 +1098,8 @@ function create() {
       padding: { x: 8, y: 4 },
     })
     .setScrollFactor(0)
-    .setDepth(10);
+    .setDepth(10)
+    .setVisible(false);
 
   statusText = this.add
     .text(16, 108, ' ', {
@@ -1107,7 +1110,8 @@ function create() {
       padding: { x: 8, y: 4 },
     })
     .setScrollFactor(0)
-    .setDepth(10);
+    .setDepth(10)
+    .setVisible(false);
 
   bestText = this.add
     .text(16, 214, `Bestzeit: ${bestTimeMs == null ? '-' : formatMs(bestTimeMs)}`, {
@@ -1180,6 +1184,7 @@ function create() {
   );
   syncActionButtonStates();
   setupHelpDialog();
+  initDomRunHud();
 
   initSfx(this);
   initAudioLayers();
@@ -1196,6 +1201,7 @@ function create() {
       3400
     );
   }
+  syncDomRunHud();
 }
 
 function collectMouse(playerSprite, mouse) {
@@ -1213,6 +1219,12 @@ function collectMouse(playerSprite, mouse) {
   score += mousePoints;
   if (mouseComboCount > levelMaxCombo) levelMaxCombo = mouseComboCount;
   scoreText.setText(getHudScoreSummary());
+  spawnActionBurst(spawnX, spawnY, mouseComboCount >= 5 ? 0xffa94d : 0xffe07a, 8 + Math.min(5, mouseComboCount));
+  spawnFloatingPoints(spawnX, spawnY - 12, `+${mousePoints}`, mouseComboCount >= 5 ? '#ffd06b' : '#fff4b0');
+  triggerSfx(mouseComboCount >= 3 ? 'combo_collect' : 'mouse_collect');
+  if (mouseComboCount === 3 || mouseComboCount === 5 || mouseComboCount === 8) {
+    addCameraImpact(0.0018 + mouseComboCount * 0.00012, 70);
+  }
   if (mouseComboCount >= 2) {
     setStatus(`Combo x${comboMul.toFixed(1)} (+${mousePoints})`, 650);
   }
@@ -1289,6 +1301,8 @@ function reachFlag() {
   }
   score += levelClearBonus + challengeBonus;
   scoreText.setText(getHudScoreSummary());
+  celebrateLevelClear();
+  triggerSfx('level_clear');
 
   if (currentLevel < MAX_LEVEL) {
     gameWon = true;
@@ -1356,8 +1370,13 @@ function hitEnemy(playerSprite, enemy) {
         setStatus('Boss Phase 2! Vorsicht!', 1700);
       }
       playerSprite.setVelocityY(-460);
-      score += Math.round(getThemeGameplay().stompPoints * 1.6);
+      const bossPoints = Math.round(getThemeGameplay().stompPoints * 1.6);
+      score += bossPoints;
       scoreText.setText(getHudScoreSummary());
+      spawnActionBurst(enemy.x, enemy.y + 12, 0xff8f70, 14);
+      spawnFloatingPoints(enemy.x, enemy.y - 12, `+${bossPoints}`, '#ffb49f');
+      addCameraImpact(0.005, 120);
+      triggerSfx('stomp');
       if (nextHp <= 0) {
         enemy.disableBody(true, true);
         setStatus('Boss besiegt! Zur Flagge!', 2400);
@@ -1369,8 +1388,13 @@ function hitEnemy(playerSprite, enemy) {
 
     enemy.disableBody(true, true);
     playerSprite.setVelocityY(-430);
-    score += getThemeGameplay().stompPoints;
+    const stompPoints = getThemeGameplay().stompPoints;
+    score += stompPoints;
     scoreText.setText(getHudScoreSummary());
+    spawnActionBurst(enemy.x, enemy.y + 10, 0x7bd39c, 11);
+    spawnFloatingPoints(enemy.x, enemy.y - 10, `+${stompPoints}`, '#a6f2be');
+    addCameraImpact(0.0035, 90);
+    triggerSfx('stomp');
     setStatus('Boing! Gegner besiegt.', 1100);
     return;
   }
@@ -1393,6 +1417,9 @@ function loseLife(message) {
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
   scoreText.setText(getHudScoreSummary());
   setStatus(message, 1600);
+  spawnActionBurst(player.x + player.displayWidth * 0.5, player.y + player.displayHeight * 0.35, 0xff6f6f, 10);
+  addCameraImpact(0.008, 170, { r: 255, g: 80, b: 80 });
+  triggerSfx('hit');
 
   if (lives <= 0) {
     gameOver = true;
@@ -1481,20 +1508,27 @@ function touchCheckpoint(playerSprite, checkpoint) {
 }
 
 function collectCatnip(playerSprite, catnip) {
+  const x = catnip.x;
+  const y = catnip.y;
   catnip.disableBody(true, true);
   const now = sceneRef.time.now;
   boostUntilMs = Math.max(boostUntilMs, now) + getThemeGameplay().catnipMs;
   score += 75;
   scoreText.setText(getHudScoreSummary());
+  spawnActionBurst(x, y, 0x73e6a1, 12);
+  spawnFloatingPoints(x, y - 10, '+75 Boost', '#a8f5bf');
   setStatus('Catnip! Kurz schneller und hoeher.', 1800);
 }
 
 function collectLifePickup(playerSprite, pickup) {
   if (!pickup?.active) return;
+  const x = pickup.x;
+  const y = pickup.y;
+  const gainedLife = lives < 6;
   pickup.disableBody(true, true);
   triggerSfx('life_pickup');
 
-  if (lives < 6) {
+  if (gainedLife) {
     lives += 1;
     setStatus('Geheimes Herz! +1 Leben.', 1700);
   } else {
@@ -1504,6 +1538,8 @@ function collectLifePickup(playerSprite, pickup) {
 
   lifeText.setText(`Leben: ${'?'.repeat(Math.max(0, lives))}`);
   scoreText.setText(getHudScoreSummary());
+  spawnActionBurst(x, y, 0xff7fa3, 14);
+  spawnFloatingPoints(x, y - 12, gainedLife ? '+1 Leben' : '+250', '#ffc0d2');
 }
 
 function hitHiddenLifeBlock(playerSprite, block) {
@@ -1975,6 +2011,30 @@ function initSfx(scene) {
 
 function onSfxEvent(name) {
   if (!sfxAudioCtx || sfxAudioCtx.state !== 'running') return;
+  if (name === 'mouse_collect') {
+    playTone(720, 0.055, 'triangle', 0.04, 0);
+    return;
+  }
+  if (name === 'combo_collect') {
+    playTone(760, 0.05, 'triangle', 0.045, 0);
+    playTone(980, 0.065, 'triangle', 0.04, 0.045);
+    return;
+  }
+  if (name === 'stomp') {
+    playTone(180, 0.06, 'square', 0.045, 0);
+    playTone(340, 0.07, 'triangle', 0.035, 0.035);
+    return;
+  }
+  if (name === 'hit') {
+    playTone(170, 0.11, 'sawtooth', 0.04, 0);
+    return;
+  }
+  if (name === 'level_clear') {
+    [620, 780, 930, 1240].forEach((frequency, index) => {
+      playTone(frequency, 0.1, 'triangle', 0.045, index * 0.07);
+    });
+    return;
+  }
   if (name === 'secret_block_hit') {
     playTone(520, 0.05, 'square', 0.06, 0);
     playTone(780, 0.07, 'square', 0.045, 0.05);
@@ -2123,6 +2183,7 @@ function carryPlayerOnMovingPlatforms() {
 
 function update() {
   syncAnimationTiming();
+  syncDomRunHud();
 
   if (isHelpDialogOpen()) return;
 
@@ -2151,6 +2212,7 @@ function update() {
   if (statusClearAt > 0 && sceneRef.time.now >= statusClearAt) {
     statusText.setText(' ');
     statusText.setAlpha(1);
+    if (domHud?.status) domHud.status.classList.remove('is-visible');
     statusClearAt = 0;
     statusFadeStartAt = 0;
   } else if (statusClearAt > 0 && statusFadeStartAt > 0) {
@@ -2275,6 +2337,10 @@ function formatMs(ms) {
 function setStatus(message, durationMs = 2200) {
   statusText.setText(message);
   statusText.setAlpha(1);
+  if (domHud?.status) {
+    domHud.status.textContent = message;
+    domHud.status.classList.toggle('is-visible', Boolean(message));
+  }
   if (durationMs && durationMs > 0) {
     statusClearAt = sceneRef.time.now + durationMs;
     statusFadeStartAt = sceneRef.time.now + Math.max(0, durationMs - 420);
@@ -2680,6 +2746,153 @@ function applyColliderProfile(sprite, profile, refreshStaticBody = false) {
   if (refreshStaticBody && typeof sprite.refreshBody === 'function') {
     sprite.refreshBody();
   }
+}
+
+function initDomRunHud() {
+  domHud = {
+    root: document.getElementById('runHud'),
+    level: document.getElementById('levelBadge'),
+    theme: document.getElementById('themeBadge'),
+    progress: document.getElementById('levelProgress'),
+    progressFill: document.getElementById('levelProgressFill'),
+    mice: document.getElementById('miceBadge'),
+    score: document.getElementById('scoreBadge'),
+    lives: document.getElementById('livesBadge'),
+    challenge: document.getElementById('challengeBadge'),
+    challengeProgress: document.getElementById('challengeProgress'),
+    combo: document.getElementById('comboHud'),
+    comboLabel: document.getElementById('comboLabel'),
+    comboFill: document.getElementById('comboFill'),
+    status: document.getElementById('runStatus'),
+  };
+}
+
+function setDomText(element, value) {
+  if (element && element.textContent !== value) element.textContent = value;
+}
+
+function getChallengeProgressText() {
+  if (!currentLevelChallenge || currentLevelChallenge.key === 'intro') {
+    return miceCollected >= miceTotal && miceTotal > 0 ? 'Zur Flagge!' : 'Alle Mäuse finden';
+  }
+  if (currentLevelChallenge.key === 'no_hit') {
+    return levelLivesLost === 0 ? 'Noch fehlerfrei' : 'Für dieses Level verpasst';
+  }
+  if (currentLevelChallenge.key === 'combo5') {
+    return `${Math.min(5, levelMaxCombo)} / 5 in Folge`;
+  }
+  if (currentLevelChallenge.key === 'stomps2') {
+    return `${Math.min(2, levelStomps)} / 2 Gegner`;
+  }
+  return 'Im Lauf';
+}
+
+function syncDomRunHud() {
+  if (!domHud?.root) return;
+  const routeProgress = player
+    ? clampValue((player.x - 100) / Math.max(1, WORLD_WIDTH - 280), 0, 1)
+    : 0;
+  const collectionProgress = miceTotal > 0 ? miceCollected / miceTotal : 0;
+  const levelGoalProgress = gameWon ? 1 : Math.min(0.98, routeProgress * 0.68 + collectionProgress * 0.32);
+  const progressPercent = Math.round(levelGoalProgress * 100);
+  const comboActive = mouseComboCount > 1 && sceneRef && sceneRef.time.now <= mouseComboExpiresAt;
+  const comboRemaining = comboActive
+    ? clampValue((mouseComboExpiresAt - sceneRef.time.now) / MOUSE_COMBO_WINDOW_MS, 0, 1)
+    : 0;
+  const comboMultiplier = comboActive ? getMouseComboMultiplier(mouseComboCount) : 1;
+  const accents = {
+    forest: '#78d69c',
+    ocean: '#72d6ee',
+    desert: '#ffc56c',
+    mountain: '#becbf1',
+    city: '#f0a7cf',
+  };
+
+  setDomText(domHud.level, `Level ${currentLevel} / ${MAX_LEVEL}`);
+  setDomText(domHud.theme, currentTheme?.label || 'Reise');
+  setDomText(domHud.mice, `🐭 ${miceCollected} / ${miceTotal}`);
+  setDomText(domHud.score, `✨ ${score.toLocaleString('de-DE')}`);
+  setDomText(domHud.lives, `❤️ ${Math.max(0, lives)}`);
+  setDomText(domHud.challenge, currentLevelChallenge?.label || 'Aufwärmen');
+  setDomText(domHud.challengeProgress, getChallengeProgressText());
+  setDomText(domHud.comboLabel, comboActive ? `Flow x${comboMultiplier.toFixed(1)}` : 'Flow x1.0');
+  domHud.root.style.setProperty('--theme-accent', accents[currentTheme?.key] || accents.forest);
+  if (domHud.progressFill) domHud.progressFill.style.width = `${progressPercent}%`;
+  if (domHud.progress) {
+    domHud.progress.setAttribute('aria-valuenow', String(progressPercent));
+    domHud.progress.setAttribute('aria-valuetext', `${progressPercent} Prozent des Levelziels`);
+  }
+  domHud.combo?.classList.toggle('is-active', comboActive);
+  if (domHud.comboFill) domHud.comboFill.style.width = `${Math.round(comboRemaining * 100)}%`;
+}
+
+function reducedMotionPreferred() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function spawnActionBurst(x, y, color = 0xffd66b, count = 9) {
+  if (!sceneRef) return;
+  const particleCount = reducedMotionPreferred() ? Math.min(3, count) : count;
+  for (let i = 0; i < particleCount; i += 1) {
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.3;
+    const distance = 26 + Math.random() * 34;
+    const dot = sceneRef.add
+      .circle(x, y, 2 + Math.random() * 2.5, color, 0.95)
+      .setDepth(16);
+    sceneRef.tweens.add({
+      targets: dot,
+      x: x + Math.cos(angle) * distance,
+      y: y + Math.sin(angle) * distance - 8,
+      alpha: 0,
+      scale: 0.25,
+      duration: reducedMotionPreferred() ? 140 : 300 + Math.random() * 120,
+      ease: 'Quad.Out',
+      onComplete: () => dot.destroy(),
+    });
+  }
+}
+
+function spawnFloatingPoints(x, y, label, color = '#fff0a8') {
+  if (!sceneRef) return;
+  const text = sceneRef.add
+    .text(x, y, label, {
+      fontFamily: 'Segoe UI, sans-serif',
+      fontSize: '17px',
+      fontStyle: 'bold',
+      color,
+      stroke: '#172944',
+      strokeThickness: 4,
+    })
+    .setOrigin(0.5)
+    .setDepth(17);
+  sceneRef.tweens.add({
+    targets: text,
+    y: y - (reducedMotionPreferred() ? 16 : 38),
+    alpha: 0,
+    scale: reducedMotionPreferred() ? 1 : 1.12,
+    duration: reducedMotionPreferred() ? 320 : 680,
+    ease: 'Cubic.Out',
+    onComplete: () => text.destroy(),
+  });
+}
+
+function addCameraImpact(intensity = 0.0025, duration = 90, flashColor = null) {
+  if (!sceneRef?.cameras?.main || reducedMotionPreferred()) return;
+  sceneRef.cameras.main.shake(duration, intensity);
+  if (flashColor) {
+    sceneRef.cameras.main.flash(duration, flashColor.r, flashColor.g, flashColor.b, false);
+  }
+}
+
+function celebrateLevelClear() {
+  if (!sceneRef || !player) return;
+  const colors = [0xffd66b, 0x7bd39c, 0x72d6ee, 0xf0a7cf];
+  colors.forEach((color, index) => {
+    sceneRef.time.delayedCall(index * 80, () => {
+      spawnActionBurst(player.x + 20 + index * 14, player.y - 18 - index * 6, color, 12);
+    });
+  });
+  addCameraImpact(0.003, 150, { r: 255, g: 238, b: 170 });
 }
 
 function createOrReplaceAnim(scene, key, frames, cfg) {

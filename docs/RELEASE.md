@@ -3,7 +3,7 @@
 ## Automatisch
 
 - [x] `npm ci` läuft mit der vorgesehenen Node-LTS-Version.
-- [x] `npm run check` endet mit 0 Fehlern, 0 Warnungen, 11 grünen Node-Tests und grünem Browser-Smoke-Test.
+- [x] `npm run check` endet mit 0 Fehlern, 0 Warnungen, 12 grünen Node-Tests und grünem Browser-Smoke-Test.
 - [x] `npm run build` hält das 16-MiB-Budget ein und enthält ausschließlich manifestierte Assets.
 - [x] CI ist für den Zielcommit grün.
 

@@ -33,3 +33,20 @@ test('game actions and onboarding are semantic and keyboard reachable', () => {
   assert.match(game, /if \(isHelpDialogOpen\(\)\) return/);
   assert.doesNotMatch(game, /createMobileRoundButton/);
 });
+
+test('mission HUD exposes progress, challenge and combo feedback', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8');
+
+  assert.match(html, /id="runHud"[^>]*aria-label="Aktueller Lauf"/);
+  assert.match(html, /id="levelProgress"[^>]*role="progressbar"/);
+  assert.match(html, /id="challengeBadge"/);
+  assert.match(html, /id="comboHud"[^>]*aria-live="polite"/);
+  assert.match(html, /id="runStatus"[^>]*role="status"/);
+  assert.match(css, /\.run-hud \{/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(game, /function syncDomRunHud\(\)/);
+  assert.match(game, /function spawnActionBurst\(/);
+  assert.match(game, /function celebrateLevelClear\(/);
+});

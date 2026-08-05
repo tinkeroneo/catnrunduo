@@ -15,7 +15,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 |---|---|---|
 | CAT-01 | erledigt | Generator ausgelagert, Spring-Zweig erreichbar, Level 3–52 deterministisch getestet |
 | CAT-02 | erledigt | versionierter Save-State, explizites Fortsetzen/Neustarten und sicherer Fallback bei beschädigtem Storage |
-| CAT-03 | erledigt | ESLint ohne Warnungen, 11 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
+| CAT-03 | erledigt | ESLint ohne Warnungen, 12 Node-Tests, dauerhafter Chrome-Smoke-Test und CI |
 | CAT-05 | fortgeschritten | Levelgenerator, Progression/Aufgaben, Persistenz und HUD-Texte als reine testbare Module ausgelagert; Szenendatei bleibt groß |
 | CAT-06 bis CAT-09 | erledigt | First-run-Hilfe, semantische Controls, kompaktes Desktop-Layout und lesbare deutsche HUD-Texte umgesetzt |
 | CAT-10, CAT-11 | erledigt | aktiver Lauf benötigt Neustartbestätigung; Audioauswahl wird fehlertolerant gespeichert |
@@ -43,7 +43,7 @@ Im geprüften Startzustand traten keine blockierenden Laufzeitfehler auf. Der wi
 | Dependency-Audit | `npm audit` erfolgreich; 0 bekannte Schwachstellen |
 | Lint | 0 Fehler und 0 Warnungen; Warnbudget ist null |
 | JavaScript-Syntax | `node --check` für Generator, Persistenz, HUD-Texte und Spiel erfolgreich |
-| Modul-/Vertragstests | 11/11 erfolgreich; Generator, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
+| Modul-/Vertragstests | 12/12 erfolgreich; Generator, Progression, Aufgaben, Persistenz, Neustart, HUD-Texte und semantische UI |
 | Asset-Manifest | valides JSON |
 | Desktop-Laufzeit, 1440 × 1000 | nach Änderungen erneut geladen und gerendert |
 | Schmale Hochkantansicht, 500 × 844 | nach Änderungen erneut geladen und gerendert, Actions und Hilfe bleiben im Viewport |

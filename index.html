@@ -22,6 +22,30 @@
       <button id="touchProfileControl" type="button" aria-label="Touch-Profil Einfach" aria-pressed="false" title="Touch-Profil wechseln">◕</button>
       <button id="helpControl" type="button" aria-label="Spielhilfe öffnen" title="Spielhilfe">❓</button>
     </nav>
+    <section id="runHud" class="run-hud" aria-label="Aktueller Lauf">
+      <div class="run-hud__route">
+        <div>
+          <span class="run-hud__eyebrow">Aktuelle Jagd</span>
+          <strong id="levelBadge">Level 1 / 52</strong>
+        </div>
+        <span id="themeBadge" class="run-hud__theme">Wald</span>
+      </div>
+      <div id="levelProgress" class="run-progress" role="progressbar" aria-label="Fortschritt zum Levelziel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="levelProgressFill"></span></div>
+      <div class="run-hud__stats">
+        <span id="miceBadge">🐭 0 / 0</span>
+        <span id="scoreBadge">✨ 0</span>
+        <span id="livesBadge">❤️ 3</span>
+      </div>
+      <div class="run-hud__mission">
+        <span><small>Aufgabe</small><strong id="challengeBadge">Aufwärmen</strong></span>
+        <span id="challengeProgress">Bereit</span>
+      </div>
+      <div id="comboHud" class="combo-hud" aria-live="polite">
+        <span id="comboLabel">Flow x1.0</span>
+        <span class="combo-hud__track" aria-hidden="true"><span id="comboFill"></span></span>
+      </div>
+      <p id="runStatus" class="run-status" role="status" aria-live="polite"></p>
+    </section>
     <div id="game" role="img" aria-label="Seitlich scrollendes Plattformspiel mit einer Katze" aria-describedby="controlsHint"></div>
   </main>
   <dialog id="resumeDialog" class="run-dialog" aria-labelledby="resumeTitle" aria-describedby="resumeSummary">
